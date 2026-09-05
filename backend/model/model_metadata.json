@@ -1,0 +1,46 @@
+{
+  "model_type": "XGBoost",
+  "features": [
+    "rainfall_30m",
+    "rainfall_1h",
+    "rainfall_3h",
+    "horizon_minutes",
+    "elevation",
+    "slope",
+    "imperviousness",
+    "drain_capacity",
+    "pipe_diameter",
+    "distance_to_drain",
+    "historical_floods"
+  ],
+  "n_features": 11,
+  "training_samples": 22220,
+  "test_samples": 5556,
+  "depth_model": {
+    "file": "flood_depth_model.json",
+    "mae_cm": 1.27,
+    "r2": 0.9306,
+    "n_estimators": 500,
+    "max_depth": 6
+  },
+  "probability_model": {
+    "file": "flood_probability_model.json",
+    "accuracy": 0.9062,
+    "auc_roc": 0.9716,
+    "n_estimators": 300,
+    "max_depth": 5
+  },
+  "feature_importance": {
+    "rainfall_1h": 0.4558,
+    "horizon_minutes": 0.179,
+    "elevation": 0.0929,
+    "slope": 0.0839,
+    "historical_floods": 0.08,
+    "rainfall_30m": 0.0538,
+    "rainfall_3h": 0.0364,
+    "imperviousness": 0.0102,
+    "drain_capacity": 0.0031,
+    "distance_to_drain": 0.0025,
+    "pipe_diameter": 0.0024
+  }
+}
