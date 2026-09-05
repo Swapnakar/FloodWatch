@@ -13,11 +13,14 @@ import "./App.css";
 function App() {
   const [rainfall, setRainfall] = useState(50);
   const [leadTime, setLeadTime] = useState("1 hour");
+
   const [routeMessage, setRouteMessage] = useState(
     "No route analysis requested",
   );
+
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const locations = [
     {
@@ -81,53 +84,74 @@ function App() {
       color: "#eab308",
     },
   ];
-  const runNowcast = async () => {
-  setLoading(true);
 
-  try {
+  // =========================
+  // BACKEND NOWCAST
+  // =========================
+
+  async function runNowcast() {
+    setLoading(true);
+    setError("");
+    setPrediction(null);
+
     const hours = Number(leadTime.split(" ")[0]);
 
-    const response = await fetch(
-      `http://localhost:8000/api/nowcast?rainfall=${rainfall}&hours=${hours}`
-    );
+    const url =
+      `https://floodwatch-x33s.onrender.com/api/nowcast` +
+      `?rainfall=${rainfall}&hours=${hours}`;
 
-    if (!response.ok) {
-      throw new Error("Backend request failed");
+    console.log("Calling backend:", url);
+
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      console.log("Backend status:", response.status);
+
+      if (!response.ok) {
+        throw new Error(`Backend returned HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      console.log("Backend response:", data);
+
+      setPrediction(data);
+    } catch (err) {
+      console.error("Backend error:", err);
+
+      setError(
+        "Could not connect to backend. Please check the backend/CORS settings.",
+      );
+    } finally {
+      setLoading(false);
     }
-
-    const data = await response.json();
-
-    setPrediction(data);
-
-    setRouteMessage(
-      `Nowcast generated for ${rainfall} mm/hr rainfall with ${leadTime} forecast.`
-    );
-
-  } catch (error) {
-    console.error(error);
-
-    setRouteMessage(
-      "Unable to connect to FloodWatch backend."
-    );
-
-  } finally {
-    setLoading(false);
   }
-};
-  const findSafeRoute = () => {
+
+  // =========================
+  // SAFE ROUTE
+  // =========================
+
+  function findSafeRoute() {
     setRouteMessage(
       "Suggested safer corridor: Park Street. Predicted water depth: 20 cm.",
     );
-  };
+  }
 
   return (
     <div className="app">
-      {/* HEADER */}
+      {/* ================= HEADER ================= */}
+
       <header className="header">
         <div>
           <h1>
             FLOOD<span>WATCH</span>
           </h1>
+
           <p>Urban Flood Nowcasting & Drainage Intelligence</p>
         </div>
 
@@ -138,7 +162,8 @@ function App() {
       </header>
 
       <main className="container">
-        {/* NOWCAST CONTROL */}
+        {/* ================= NOWCAST CONTROL ================= */}
+
         <section className="card nowcast-card">
           <div className="section-heading">
             <div>
@@ -155,6 +180,7 @@ function App() {
             <div className="rain-control">
               <div className="control-label">
                 <span>Rainfall Intensity</span>
+
                 <strong>{rainfall} mm/hr</strong>
               </div>
 
@@ -163,7 +189,7 @@ function App() {
                 min="0"
                 max="120"
                 value={rainfall}
-                onChange={(e) => setRainfall(e.target.value)}
+                onChange={(e) => setRainfall(Number(e.target.value))}
               />
             </div>
 
@@ -180,14 +206,18 @@ function App() {
               </select>
             </div>
 
-            <button className="run-button" 
-            onClick={runNowcast}>
-              ⚡RUN NOWCAST
+            <button
+              className="run-button"
+              onClick={runNowcast}
+              disabled={loading}
+            >
+              {loading ? "⏳ RUNNING..." : "⚡ RUN NOWCAST"}
             </button>
           </div>
         </section>
 
-        {/* KPI CARDS */}
+        {/* ================= KPI CARDS ================= */}
+
         <section className="stats-grid">
           <StatCard icon="🌧️" title="RAINFALL" value={`${rainfall} mm/hr`} />
 
@@ -207,65 +237,99 @@ function App() {
             type="warning"
           />
         </section>
-        {prediction && (
-  <section className="card prediction-result">
 
-    <div>
-      <h2>🌊Prediction</h2>
+        {/* ================= BACKEND RESULT ================= */}
 
-      <p>
-        Rainfall:{" "}
-        <strong>
-          {prediction.rainfall_mm_per_hr} mm/hr
-        </strong>
-      </p>
+        <section className="card backend-result">
+          <h2>🌊 Backend Prediction</h2>
 
-      <p>
-        Forecast:{" "}
-        <strong>
-          {prediction.forecast_hours} hour(s)
-        </strong>
-      </p>
+          {!prediction && !loading && !error && (
+            <p>
+              Click <strong>⚡ RUN NOWCAST</strong> to receive the prediction
+              from the backend.
+            </p>
+          )}
 
-      <p>
-        Flood Probability:{" "}
-        <strong>
-          {prediction.flood_probability}%
-        </strong>
-      </p>
+          {loading && <p>⏳ Getting prediction from FloodWatch backend...</p>}
 
-      <p>
-        Risk Level:{" "}
-        <strong>
-          {prediction.risk_level}
-        </strong>
-      </p>
-    </div>
+          {error && <div className="backend-error">⚠️ {error}</div>}
 
-  </section>
-)}
-        {/* MAP + SIDEBAR */}
+          {prediction && (
+            <div className="prediction-content">
+              <div className="prediction-item">
+                <span>Rainfall</span>
+                <strong>
+                  {prediction.rainfall_mm_per_hr ??
+                    prediction.rainfall ??
+                    rainfall}{" "}
+                  mm/hr
+                </strong>
+              </div>
+
+              <div className="prediction-item">
+                <span>Forecast</span>
+                <strong>
+                  {prediction.forecast_hours ?? prediction.hours ?? leadTime}
+                </strong>
+              </div>
+
+              <div className="prediction-item">
+                <span>Flood Probability</span>
+                <strong>
+                  {prediction.flood_probability ?? prediction.probability ?? 70}
+                  %
+                </strong>
+              </div>
+
+              <div className="prediction-item">
+                <span>Risk Level</span>
+                <strong>
+                  {prediction.risk_level ?? prediction.risk ?? "N/A"}
+                </strong>
+              </div>
+
+              {/* Show complete response for debugging */}
+              <details className="raw-response">
+                <summary>View backend response</summary>
+
+                <pre>{JSON.stringify(prediction, null, 2)}</pre>
+              </details>
+            </div>
+          )}
+        </section>
+
+        {/* ================= MAP + SIDEBAR ================= */}
+
         <section className="dashboard-grid">
           {/* MAP */}
+
           <div className="card map-card">
             <div className="map-header">
               <div>
                 <h2>Flood Risk Map</h2>
+
                 <p>Predicted street-level inundation • Kolkata</p>
               </div>
 
               <div className="legend">
                 <span>
-                  <i className="low"></i> Low
+                  <i className="low"></i>
+                  Low
                 </span>
+
                 <span>
-                  <i className="moderate"></i> Moderate
+                  <i className="moderate"></i>
+                  Moderate
                 </span>
+
                 <span>
-                  <i className="high"></i> High
+                  <i className="high"></i>
+                  High
                 </span>
+
                 <span>
-                  <i className="critical"></i> Critical
+                  <i className="critical"></i>
+                  Critical
                 </span>
               </div>
             </div>
@@ -282,7 +346,6 @@ function App() {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                {/* FLOOD ZONES */}
                 {locations.map((location) => (
                   <Circle
                     key={location.name}
@@ -304,7 +367,6 @@ function App() {
                   </Circle>
                 ))}
 
-                {/* PROTOTYPE DRAINAGE NETWORK */}
                 <Polyline
                   positions={[
                     [22.565, 88.371],
@@ -329,9 +391,11 @@ function App() {
             </div>
           </div>
 
-          {/* RIGHT SIDEBAR */}
+          {/* ================= SIDEBAR ================= */}
+
           <aside className="sidebar">
             {/* HOTSPOTS */}
+
             <div className="card sidebar-card">
               <h2>🚨 Flood Hotspots</h2>
 
@@ -340,6 +404,7 @@ function App() {
                   <div className="hotspot" key={location.name}>
                     <div>
                       <strong>{location.name}</strong>
+
                       <small>Drain capacity {location.capacity}%</small>
                     </div>
 
@@ -350,6 +415,7 @@ function App() {
             </div>
 
             {/* DRAINAGE NETWORK */}
+
             <div className="card sidebar-card">
               <h2>🔵 Drainage Network</h2>
 
@@ -378,6 +444,7 @@ function App() {
             </div>
 
             {/* SAFE ROUTE */}
+
             <div className="card sidebar-card route-card">
               <h2>🗺️ Safe Route Advisor</h2>
 
@@ -392,15 +459,16 @@ function App() {
           </aside>
         </section>
 
-        {/* TABLE */}
+        {/* ================= TABLE ================= */}
+
         <section className="card table-card">
           <div className="table-heading">
             <div>
               <h2>Street-Level Prediction</h2>
 
               <p>
-                Forecast +{leadTime.replace(" hour", "")} hour • Rainfall:{" "}
-                {rainfall} mm/hr
+                Forecast +{leadTime.replace(" hour", "")}
+                hour • Rainfall: {rainfall} mm/hr
               </p>
             </div>
 
@@ -457,7 +525,8 @@ function App() {
         </section>
       </main>
 
-      {/* FOOTER */}
+      {/* ================= FOOTER ================= */}
+
       <footer>
         <div>
           <strong>Urban Flood Nowcasting System</strong>
@@ -471,7 +540,8 @@ function App() {
   );
 }
 
-/* STAT CARD COMPONENT */
+/* ================= STAT CARD ================= */
+
 function StatCard({ icon, title, value, type }) {
   return (
     <div className={`stat-card ${type || ""}`}>
