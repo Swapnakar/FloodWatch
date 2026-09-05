@@ -91,8 +91,8 @@ const DEFAULT_LOCATIONS = [
   },
 ];
 
-const BACKEND_URL = "https://floodwatch-x33s.onrender.com";
-// For local development, use: "http://localhost:8000"
+const REMOTE_BACKEND_URL = "https://floodwatch-x33s.onrender.com";
+const LOCAL_BACKEND_URL = "http://127.0.0.1:8000";
 
 const RISK_COLORS = {
   CRITICAL: "#d62828",
@@ -100,6 +100,47 @@ const RISK_COLORS = {
   MODERATE: "#eab308",
   LOW: "#22c55e",
 };
+
+// Client-side physics engine fallback when backend is unreachable or returning 404
+function calculatePhysicsPrediction(req) {
+  const C = 0.30 + (req.imperviousness / 100) * 0.65;
+  const duration_hr = req.horizon_minutes / 60.0;
+  const intensity_factor = 1.0 / (1.0 + 0.3 * (duration_hr - 1.0));
+  const total_rainfall_mm = req.rainfall_1h * intensity_factor * duration_hr;
+  const runoff_m3 = (total_rainfall_mm * C / 1000.0) * 250000;
+
+  const drain_efficiency = Math.max(0.2, 1.0 - (req.rainfall_1h / 200.0));
+  const drain_distance_factor = Math.max(0.3, 1.0 - req.distance_to_drain / 100);
+  const drainage_removal_m3 = req.drain_capacity * duration_hr * drain_efficiency * drain_distance_factor;
+
+  const excess_m3 = Math.max(0, runoff_m3 - drainage_removal_m3);
+  const topo_factor = Math.max(0.5, 2.0 - req.elevation / 10.0);
+  const slope_factor = Math.max(0.3, 1.0 - req.slope / 5.0);
+
+  let depth = (excess_m3 / 250000) * topo_factor * slope_factor * 100;
+  depth += req.historical_floods * 0.5;
+  depth = Math.max(0.0, Math.round(depth * 10) / 10);
+
+  const x = (depth - 10) / 5.0;
+  const prob = Math.round((1.0 / (1.0 + Math.exp(-x))) * 100) / 100;
+
+  let risk = "LOW";
+  if (prob >= 0.80) risk = "CRITICAL";
+  else if (prob >= 0.60) risk = "HIGH";
+  else if (prob >= 0.35) risk = "MODERATE";
+
+  return {
+    water_depth_cm: depth,
+    flood_probability: prob,
+    risk_level: risk,
+    risk_color: RISK_COLORS[risk],
+    confidence: {
+      model: "Physics Model (Client Fallback)",
+      features_used: 11,
+    },
+    input: req,
+  };
+}
 
 
 function App() {
@@ -121,6 +162,7 @@ function App() {
   const [batchPredictions, setBatchPredictions] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [routeMessage, setRouteMessage] = useState(
     "No route analysis requested",
   );
@@ -157,12 +199,13 @@ function App() {
 
 
   // =========================
-  // XGBOOST PREDICTION
+  // XGBOOST PREDICTION (WITH FALLBACK)
   // =========================
 
   async function runNowcast() {
     setLoading(true);
     setError("");
+    setNotice("");
     setPrediction(null);
     setBatchPredictions(null);
 
@@ -174,7 +217,6 @@ function App() {
     };
     const horizonMinutes = horizonMap[leadTime] || 60;
 
-    // Build the request for the "control panel" location
     const singleRequest = {
       rainfall_30m: Math.round(rainfall * 1.2),
       rainfall_1h: rainfall,
@@ -189,7 +231,6 @@ function App() {
       historical_floods: historicalFloods,
     };
 
-    // Build batch request for all Kolkata locations
     const batchLocations = DEFAULT_LOCATIONS.map((loc) => ({
       rainfall_30m: Math.round(rainfall * 1.2),
       rainfall_1h: rainfall,
@@ -204,37 +245,64 @@ function App() {
       historical_floods: loc.historical_floods,
     }));
 
-    try {
-      // Run both requests in parallel
-      const [singleRes, batchRes] = await Promise.all([
-        fetch(`${BACKEND_URL}/api/predict`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(singleRequest),
-        }),
-        fetch(`${BACKEND_URL}/api/predict/batch`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ locations: batchLocations }),
-        }),
-      ]);
+    // Try candidate backends in priority order
+    const candidateUrls = [LOCAL_BACKEND_URL, REMOTE_BACKEND_URL];
+    let fetchedSingle = null;
+    let fetchedBatch = null;
+    let successfulUrl = null;
 
-      if (!singleRes.ok) throw new Error(`Single predict: HTTP ${singleRes.status}`);
-      if (!batchRes.ok) throw new Error(`Batch predict: HTTP ${batchRes.status}`);
+    for (const url of candidateUrls) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 4000);
 
-      const singleData = await singleRes.json();
-      const batchData = await batchRes.json();
+        const [singleRes, batchRes] = await Promise.all([
+          fetch(`${url}/api/predict`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(singleRequest),
+            signal: controller.signal,
+          }),
+          fetch(`${url}/api/predict/batch`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ locations: batchLocations }),
+            signal: controller.signal,
+          }),
+        ]);
+        clearTimeout(timer);
 
-      setPrediction(singleData);
-      setBatchPredictions(batchData);
-    } catch (err) {
-      console.error("Backend error:", err);
-      setError(
-        `Could not connect to backend. ${err.message}`,
-      );
-    } finally {
-      setLoading(false);
+        if (singleRes.ok && batchRes.ok) {
+          fetchedSingle = await singleRes.json();
+          fetchedBatch = await batchRes.json();
+          successfulUrl = url;
+          break;
+        }
+      } catch {
+        // Continue to next candidate
+      }
     }
+
+    if (fetchedSingle && fetchedBatch) {
+      setPrediction(fetchedSingle);
+      setBatchPredictions(fetchedBatch);
+      if (successfulUrl === LOCAL_BACKEND_URL) {
+        setNotice("Connected to local XGBoost FastAPI server (http://127.0.0.1:8000).");
+      }
+    } else {
+      // Graceful physics fallback if backend is unreachable or 404
+      const fallbackSingle = calculatePhysicsPrediction(singleRequest);
+      const fallbackBatch = {
+        predictions: batchLocations.map((loc) => calculatePhysicsPrediction(loc)),
+      };
+      setPrediction(fallbackSingle);
+      setBatchPredictions(fallbackBatch);
+      setNotice(
+        "Render server is running legacy model (404 on /api/predict). Run 'git push origin main' to deploy XGBoost to Render, or run backend locally on port 8000.",
+      );
+    }
+
+    setLoading(false);
   }
 
 
@@ -533,6 +601,24 @@ function App() {
               <pre>{JSON.stringify(prediction, null, 2)}</pre>
             </details>
           </section>
+        )}
+
+        {notice && (
+          <div
+            className="backend-notice"
+            style={{
+              margin: "0 0 18px",
+              padding: "12px 18px",
+              background: "#eff6ff",
+              border: "1px solid #bfdbfe",
+              color: "#1d4ed8",
+              borderRadius: "10px",
+              fontSize: "12px",
+              lineHeight: "1.5",
+            }}
+          >
+            💡 {notice}
+          </div>
         )}
 
         {error && (

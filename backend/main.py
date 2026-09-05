@@ -1,6 +1,9 @@
 import os
-import json
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 
+import json
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI
@@ -30,10 +33,10 @@ app.add_middleware(
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
 
-depth_model = XGBRegressor()
+depth_model = XGBRegressor(n_jobs=1)
 depth_model.load_model(os.path.join(MODEL_DIR, "flood_depth_model.json"))
 
-prob_model = XGBClassifier()
+prob_model = XGBClassifier(n_jobs=1)
 prob_model.load_model(os.path.join(MODEL_DIR, "flood_probability_model.json"))
 
 # Load metadata
