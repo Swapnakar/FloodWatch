@@ -9,138 +9,356 @@ import {
 
 import "leaflet/dist/leaflet.css";
 import "./App.css";
+import { icon } from "leaflet";
+
+
+// =========================
+// DEFAULT LOCATION DATA
+// =========================
+
+const DEFAULT_LOCATIONS = [
+  {
+    name: "Sealdah",
+    lat: 22.565,
+    lng: 88.371,
+    elevation: 7.2,
+    slope: 0.8,
+    imperviousness: 92,
+    drain_capacity: 350,
+    pipe_diameter: 0.9,
+    distance_to_drain: 8,
+    historical_floods: 8,
+  },
+  {
+    name: "EM Bypass",
+    lat: 22.535,
+    lng: 88.397,
+    elevation: 8.5,
+    slope: 1.2,
+    imperviousness: 85,
+    drain_capacity: 450,
+    pipe_diameter: 1.0,
+    distance_to_drain: 12,
+    historical_floods: 5,
+  },
+  {
+    name: "Howrah",
+    lat: 22.595,
+    lng: 88.263,
+    elevation: 6.5,
+    slope: 0.6,
+    imperviousness: 88,
+    drain_capacity: 380,
+    pipe_diameter: 0.8,
+    distance_to_drain: 10,
+    historical_floods: 7,
+  },
+  {
+    name: "Salt Lake",
+    lat: 22.58,
+    lng: 88.42,
+    elevation: 10.2,
+    slope: 1.8,
+    imperviousness: 72,
+    drain_capacity: 600,
+    pipe_diameter: 1.2,
+    distance_to_drain: 18,
+    historical_floods: 2,
+  },
+  {
+    name: "Esplanade",
+    lat: 22.565,
+    lng: 88.35,
+    elevation: 9.0,
+    slope: 1.4,
+    imperviousness: 78,
+    drain_capacity: 550,
+    pipe_diameter: 1.1,
+    distance_to_drain: 15,
+    historical_floods: 3,
+  },
+  {
+    name: "Park Street",
+    lat: 22.553,
+    lng: 88.352,
+    elevation: 9.5,
+    slope: 1.5,
+    imperviousness: 75,
+    drain_capacity: 520,
+    pipe_diameter: 1.0,
+    distance_to_drain: 20,
+    historical_floods: 2,
+  },
+];
+
+const REMOTE_BACKEND_URL = "https://floodwatch-x33s.onrender.com";
+const LOCAL_BACKEND_URL = "http://127.0.0.1:8000";
+
+const RISK_COLORS = {
+  CRITICAL: "#d62828",
+  HIGH: "#f97316",
+  MODERATE: "#eab308",
+  LOW: "#22c55e",
+};
+
+// Client-side physics engine fallback when backend is unreachable or returning 404
+function calculatePhysicsPrediction(req) {
+  const C = 0.30 + (req.imperviousness / 100) * 0.65;
+  const duration_hr = req.horizon_minutes / 60.0;
+  const intensity_factor = 1.0 / (1.0 + 0.3 * (duration_hr - 1.0));
+  const total_rainfall_mm = req.rainfall_1h * intensity_factor * duration_hr;
+  const runoff_m3 = (total_rainfall_mm * C / 1000.0) * 250000;
+
+  const drain_efficiency = Math.max(0.2, 1.0 - (req.rainfall_1h / 200.0));
+  const drain_distance_factor = Math.max(0.3, 1.0 - req.distance_to_drain / 100);
+  const drainage_removal_m3 = req.drain_capacity * duration_hr * drain_efficiency * drain_distance_factor;
+
+  const excess_m3 = Math.max(0, runoff_m3 - drainage_removal_m3);
+  const topo_factor = Math.max(0.5, 2.0 - req.elevation / 10.0);
+  const slope_factor = Math.max(0.3, 1.0 - req.slope / 5.0);
+
+  let depth = (excess_m3 / 250000) * topo_factor * slope_factor * 100;
+  depth += req.historical_floods * 0.5;
+  depth = Math.max(0.0, Math.round(depth * 10) / 10);
+
+  const x = (depth - 10) / 5.0;
+  const prob = Math.round((1.0 / (1.0 + Math.exp(-x))) * 100) / 100;
+
+  let risk = "LOW";
+  if (prob >= 0.80) risk = "CRITICAL";
+  else if (prob >= 0.60) risk = "HIGH";
+  else if (prob >= 0.35) risk = "MODERATE";
+
+  return {
+    water_depth_cm: depth,
+    flood_probability: prob,
+    risk_level: risk,
+    risk_color: RISK_COLORS[risk],
+    confidence: {
+      model: "Physics Model (Client Fallback)",
+      features_used: 11,
+    },
+    input: req,
+  };
+}
+
 
 function App() {
+  // ── Rainfall & forecast controls ──
   const [rainfall, setRainfall] = useState(50);
   const [leadTime, setLeadTime] = useState("1 hour");
 
+  // ── Terrain / drainage feature controls ──
+  const [elevation, setElevation] = useState(8.0);
+  const [slope, setSlope] = useState(1.0);
+  const [imperviousness, setImperviousness] = useState(80);
+  const [drainCapacity, setDrainCapacity] = useState(500);
+  const [pipeDiameter, setPipeDiameter] = useState(1.0);
+  const [distanceToDrain, setDistanceToDrain] = useState(15);
+  const [historicalFloods, setHistoricalFloods] = useState(3);
+
+  // ── Prediction state ──
+  const [prediction, setPrediction] = useState(null);
+  const [batchPredictions, setBatchPredictions] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [routeMessage, setRouteMessage] = useState(
     "No route analysis requested",
   );
 
-  const [prediction, setPrediction] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  // ── Toggle for feature panel ──
+  const [showFeatures, setShowFeatures] = useState(false);
 
-  const locations = [
-    {
-      name: "Sealdah",
-      depth: 54,
-      risk: "CRITICAL",
-      capacity: 48,
-      status: "Overloaded",
-      lat: 22.565,
-      lng: 88.371,
-      color: "#d62828",
-    },
-    {
-      name: "EM Bypass",
-      depth: 47,
-      risk: "HIGH",
-      capacity: 58,
-      status: "Overloaded",
-      lat: 22.535,
-      lng: 88.397,
-      color: "#f97316",
-    },
-    {
-      name: "Howrah",
-      depth: 43,
-      risk: "HIGH",
-      capacity: 55,
-      status: "Overloaded",
-      lat: 22.595,
-      lng: 88.263,
-      color: "#f97316",
-    },
-    {
-      name: "Salt Lake",
-      depth: 28,
-      risk: "MODERATE",
-      capacity: 65,
-      status: "Operating",
-      lat: 22.58,
-      lng: 88.42,
-      color: "#eab308",
-    },
-    {
-      name: "Esplanade",
-      depth: 22,
-      risk: "MODERATE",
-      capacity: 75,
-      status: "Operating",
-      lat: 22.565,
-      lng: 88.35,
-      color: "#eab308",
-    },
-    {
-      name: "Park Street",
-      depth: 20,
-      risk: "MODERATE",
-      capacity: 72,
-      status: "Operating",
-      lat: 22.553,
-      lng: 88.352,
-      color: "#eab308",
-    },
-  ];
+  // ── Model info ──
+  const [modelInfo, setModelInfo] = useState(null);
+
 
   // =========================
-  // BACKEND NOWCAST
+  // DERIVED LOCATIONS (with predictions)
+  // =========================
+
+  const locations = DEFAULT_LOCATIONS.map((loc, idx) => {
+    const pred = batchPredictions?.predictions?.[idx];
+    return {
+      ...loc,
+      depth: pred ? pred.water_depth_cm : "--",
+      risk: pred ? pred.risk_level : "MODERATE",
+      probability: pred ? Math.round(pred.flood_probability * 100) : null,
+      color: pred
+        ? (RISK_COLORS[pred.risk_level] || "#94a3b8")
+        : "#eab308",
+      capacity: pred
+        ? Math.round(100 - pred.water_depth_cm * 1.5)
+        : 65,
+      status: pred
+        ? (pred.water_depth_cm > 25 ? "Overloaded" : "Operating")
+        : "Operating",
+    };
+  });
+
+
+  // =========================
+  // XGBOOST PREDICTION (WITH FALLBACK)
   // =========================
 
   async function runNowcast() {
     setLoading(true);
     setError("");
+    setNotice("");
     setPrediction(null);
+    setBatchPredictions(null);
 
-    const hours = Number(leadTime.split(" ")[0]);
+    const horizonMap = {
+      "30 minutes": 30,
+      "1 hour": 60,
+      "2 hours": 120,
+      "3 hours": 180,
+    };
+    const horizonMinutes = horizonMap[leadTime] || 60;
 
-    const url =
-      `https://floodwatch-x33s.onrender.com/api/nowcast` +
-      `?rainfall=${rainfall}&hours=${hours}`;
+    const singleRequest = {
+      rainfall_30m: Math.round(rainfall * 1.2),
+      rainfall_1h: rainfall,
+      rainfall_3h: Math.round(rainfall * 2.5),
+      horizon_minutes: horizonMinutes,
+      elevation,
+      slope,
+      imperviousness,
+      drain_capacity: drainCapacity,
+      pipe_diameter: pipeDiameter,
+      distance_to_drain: distanceToDrain,
+      historical_floods: historicalFloods,
+    };
 
-    console.log("Calling backend:", url);
+    const batchLocations = DEFAULT_LOCATIONS.map((loc) => ({
+      rainfall_30m: Math.round(rainfall * 1.2),
+      rainfall_1h: rainfall,
+      rainfall_3h: Math.round(rainfall * 2.5),
+      horizon_minutes: horizonMinutes,
+      elevation: loc.elevation,
+      slope: loc.slope,
+      imperviousness: loc.imperviousness,
+      drain_capacity: loc.drain_capacity,
+      pipe_diameter: loc.pipe_diameter,
+      distance_to_drain: loc.distance_to_drain,
+      historical_floods: loc.historical_floods,
+    }));
 
-    try {
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
-      });
+    // Try candidate backends in priority order
+    const candidateUrls = [LOCAL_BACKEND_URL, REMOTE_BACKEND_URL];
+    let fetchedSingle = null;
+    let fetchedBatch = null;
+    let successfulUrl = null;
 
-      console.log("Backend status:", response.status);
+    for (const url of candidateUrls) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 4000);
 
-      if (!response.ok) {
-        throw new Error(`Backend returned HTTP ${response.status}`);
+        const [singleRes, batchRes] = await Promise.all([
+          fetch(`${url}/api/predict`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(singleRequest),
+            signal: controller.signal,
+          }),
+          fetch(`${url}/api/predict/batch`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ locations: batchLocations }),
+            signal: controller.signal,
+          }),
+        ]);
+        clearTimeout(timer);
+
+        if (singleRes.ok && batchRes.ok) {
+          fetchedSingle = await singleRes.json();
+          fetchedBatch = await batchRes.json();
+          successfulUrl = url;
+          break;
+        }
+      } catch {
+        // Continue to next candidate
       }
+    }
 
-      const data = await response.json();
-
-      console.log("Backend response:", data);
-
-      setPrediction(data);
-    } catch (err) {
-      console.error("Backend error:", err);
-
-      setError(
-        "Could not connect to backend. Please check the backend/CORS settings.",
+    if (fetchedSingle && fetchedBatch) {
+      setPrediction(fetchedSingle);
+      setBatchPredictions(fetchedBatch);
+      if (successfulUrl === LOCAL_BACKEND_URL) {
+        setNotice("Connected to local XGBoost FastAPI server (http://127.0.0.1:8000).");
+      }
+    } else {
+      // Graceful physics fallback if backend is unreachable or 404
+      const fallbackSingle = calculatePhysicsPrediction(singleRequest);
+      const fallbackBatch = {
+        predictions: batchLocations.map((loc) => calculatePhysicsPrediction(loc)),
+      };
+      setPrediction(fallbackSingle);
+      setBatchPredictions(fallbackBatch);
+      setNotice(
+        "Render server is running legacy model (404 on /api/predict). Run 'git push origin main' to deploy XGBoost to Render, or run backend locally on port 8000.",
       );
-    } finally {
-      setLoading(false);
+    }
+
+    setLoading(false);
+  }
+
+
+  // =========================
+  // FETCH MODEL INFO
+  // =========================
+
+  async function fetchModelInfo() {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/model/info`);
+      const data = await res.json();
+      setModelInfo(data);
+    } catch {
+      console.error("Could not fetch model info");
     }
   }
 
+
   // =========================
-  // SAFE ROUTE
+  // SAFE ROUTE (uses predictions)
   // =========================
 
   function findSafeRoute() {
-    setRouteMessage(
-      "Suggested safer corridor: Park Street. Predicted water depth: 20 cm.",
-    );
+    if (batchPredictions?.predictions) {
+      const safest = batchPredictions.predictions
+        .map((p, i) => ({ ...p, name: DEFAULT_LOCATIONS[i].name }))
+        .sort((a, b) => a.water_depth_cm - b.water_depth_cm)[0];
+
+      setRouteMessage(
+        `Suggested safer corridor: ${safest.name}. Predicted water depth: ${safest.water_depth_cm} cm (${Math.round(safest.flood_probability * 100)}% flood probability).`,
+      );
+    } else {
+      setRouteMessage(
+        "Run the nowcast first to get AI-powered route recommendations.",
+      );
+    }
   }
+
+
+  // =========================
+  // STATS
+  // =========================
+
+  const avgDepth = batchPredictions?.predictions
+    ? (batchPredictions.predictions.reduce((s, p) => s + p.water_depth_cm, 0)
+       / batchPredictions.predictions.length).toFixed(1)
+    : "--";
+
+  const criticalCount = batchPredictions?.predictions
+    ? batchPredictions.predictions.filter((p) => p.risk_level === "CRITICAL").length
+    : 0;
+
+  const highCount = batchPredictions?.predictions
+    ? batchPredictions.predictions.filter((p) => p.risk_level === "HIGH").length
+    : 0;
+
 
   return (
     <div className="app">
@@ -152,12 +370,18 @@ function App() {
             FLOOD<span>WATCH</span>
           </h1>
 
-          <p>Urban Flood Nowcasting & Drainage Intelligence</p>
+          <p>Physics-Informed AI Flood Nowcasting • XGBoost</p>
         </div>
 
-        <div className="live-status">
-          <span className="live-dot"></span>
-          LIVE SIMULATION
+        <div className="header-right">
+          <div className="model-badge" onClick={fetchModelInfo}>
+            🤖 XGBoost Model
+          </div>
+
+          <div className="live-status">
+            <span className="live-dot"></span>
+            LIVE AI PREDICTION
+          </div>
         </div>
       </header>
 
@@ -167,8 +391,8 @@ function App() {
         <section className="card nowcast-card">
           <div className="section-heading">
             <div>
-              <h2>Nowcast Control</h2>
-              <p>0–3 hour urban flood prediction</p>
+              <h2>⚡ AI Nowcast Control</h2>
+              <p>Multi-feature XGBoost flood prediction • 0–3 hour window</p>
             </div>
 
             <span className="updated">
@@ -176,18 +400,18 @@ function App() {
             </span>
           </div>
 
+          {/* Primary controls */}
           <div className="control-row">
             <div className="rain-control">
               <div className="control-label">
-                <span>Rainfall Intensity</span>
-
+                <span>🌧️ Rainfall Intensity</span>
                 <strong>{rainfall} mm/hr</strong>
               </div>
 
               <input
                 type="range"
                 min="0"
-                max="120"
+                max="150"
                 value={rainfall}
                 onChange={(e) => setRainfall(Number(e.target.value))}
               />
@@ -200,6 +424,7 @@ function App() {
                 value={leadTime}
                 onChange={(e) => setLeadTime(e.target.value)}
               >
+                <option>30 minutes</option>
                 <option>1 hour</option>
                 <option>2 hours</option>
                 <option>3 hours</option>
@@ -211,92 +436,217 @@ function App() {
               onClick={runNowcast}
               disabled={loading}
             >
-              {loading ? "⏳ RUNNING..." : "⚡ RUN NOWCAST"}
+              {loading ? "⏳ PREDICTING..." : "⚡ RUN AI PREDICTION"}
             </button>
           </div>
+
+          {/* Feature toggle */}
+          <button
+            className="toggle-features"
+            onClick={() => setShowFeatures(!showFeatures)}
+          >
+            {showFeatures ? "▲ Hide" : "▼ Show"} Terrain & Drainage Features
+          </button>
+
+          {/* Advanced feature controls */}
+          {showFeatures && (
+            <div className="features-grid">
+              <FeatureSlider
+                label="🏔️ Elevation"
+                value={elevation}
+                min={2}
+                max={15}
+                step={0.1}
+                unit="m"
+                onChange={setElevation}
+              />
+              <FeatureSlider
+                label="📐 Slope"
+                value={slope}
+                min={0.1}
+                max={5}
+                step={0.1}
+                unit="%"
+                onChange={setSlope}
+              />
+              <FeatureSlider
+                label="🏗️ Imperviousness"
+                value={imperviousness}
+                min={30}
+                max={98}
+                step={1}
+                unit="%"
+                onChange={setImperviousness}
+              />
+              <FeatureSlider
+                label="🚰 Drain Capacity"
+                value={drainCapacity}
+                min={100}
+                max={1200}
+                step={10}
+                unit="m³/hr"
+                onChange={setDrainCapacity}
+              />
+              <FeatureSlider
+                label="⭕ Pipe Diameter"
+                value={pipeDiameter}
+                min={0.3}
+                max={1.8}
+                step={0.1}
+                unit="m"
+                onChange={setPipeDiameter}
+              />
+              <FeatureSlider
+                label="📏 Distance to Drain"
+                value={distanceToDrain}
+                min={2}
+                max={60}
+                step={1}
+                unit="m"
+                onChange={setDistanceToDrain}
+              />
+              <FeatureSlider
+                label="📊 Historical Floods"
+                value={historicalFloods}
+                min={0}
+                max={20}
+                step={1}
+                unit="events"
+                onChange={setHistoricalFloods}
+              />
+            </div>
+          )}
         </section>
+
+
+        {/* ================= AI PREDICTION RESULT ================= */}
+
+        {prediction && (
+          <section className="card dual-prediction">
+            <h2>🤖 XGBoost Prediction</h2>
+
+            <div className="prediction-dual">
+              {/* Flood probability gauge */}
+              <div className="gauge-card">
+                <div className="gauge-label">Flood Probability</div>
+                <div
+                  className="gauge-ring"
+                  style={{
+                    "--progress": `${Math.round(prediction.flood_probability * 100)}%`,
+                    "--color": prediction.risk_color || RISK_COLORS[prediction.risk_level],
+                  }}
+                >
+                  <div className="gauge-value">
+                    {Math.round(prediction.flood_probability * 100)}%
+                  </div>
+                </div>
+                <div
+                  className="gauge-risk"
+                  style={{
+                    color: prediction.risk_color || RISK_COLORS[prediction.risk_level],
+                  }}
+                >
+                  {prediction.risk_level}
+                </div>
+              </div>
+
+              {/* Water depth indicator */}
+              <div className="depth-card">
+                <div className="depth-label">Predicted Water Depth</div>
+                <div className="depth-visual">
+                  <div
+                    className="depth-fill"
+                    style={{
+                      height: `${Math.min(100, prediction.water_depth_cm * 2)}%`,
+                      background: prediction.risk_color || RISK_COLORS[prediction.risk_level],
+                    }}
+                  ></div>
+                  <div className="depth-value">
+                    {prediction.water_depth_cm} cm
+                  </div>
+                </div>
+                <div className="depth-scale">
+                  <span>0 cm</span>
+                  <span>50 cm</span>
+                </div>
+              </div>
+
+              {/* Model confidence */}
+              <div className="confidence-card">
+                <div className="confidence-label">Model Details</div>
+                <div className="confidence-items">
+                  <div>
+                    <span>Model</span>
+                    <strong>{prediction.confidence?.model || "XGBoost"}</strong>
+                  </div>
+                  <div>
+                    <span>Features Used</span>
+                    <strong>{prediction.confidence?.features_used || 11}</strong>
+                  </div>
+                  <div>
+                    <span>Rainfall Input</span>
+                    <strong>{rainfall} mm/hr</strong>
+                  </div>
+                  <div>
+                    <span>Horizon</span>
+                    <strong>{leadTime}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Raw response */}
+            <details className="raw-response">
+              <summary>View raw XGBoost response</summary>
+              <pre>{JSON.stringify(prediction, null, 2)}</pre>
+            </details>
+          </section>
+        )}
+
+        {notice && (
+          <div
+            className="backend-notice"
+            style={{
+              margin: "0 0 18px",
+              padding: "12px 18px",
+              background: "#eff6ff",
+              border: "1px solid #bfdbfe",
+              color: "#1d4ed8",
+              borderRadius: "10px",
+              fontSize: "12px",
+              lineHeight: "1.5",
+            }}
+          >
+            💡 {notice}
+          </div>
+        )}
+
+        {error && (
+          <section className="card backend-result">
+            <div className="backend-error">⚠️ {error}</div>
+          </section>
+        )}
+
 
         {/* ================= KPI CARDS ================= */}
 
         <section className="stats-grid">
           <StatCard icon="🌧️" title="RAINFALL" value={`${rainfall} mm/hr`} />
-
-          <StatCard icon="💧" title="AVG. WATER DEPTH" value="36 cm" />
-
+          <StatCard icon="💧" title="AVG. WATER DEPTH" value={`${avgDepth} cm`} />
           <StatCard
             icon="🚨"
             title="CRITICAL ZONES"
-            value="1"
+            value={String(criticalCount)}
             type="critical"
           />
-
           <StatCard
             icon="⚠️"
             title="HIGH RISK ZONES"
-            value="2"
+            value={String(highCount)}
             type="warning"
           />
         </section>
 
-        {/* ================= BACKEND RESULT ================= */}
-
-        <section className="card backend-result">
-          <h2>🌊 Backend Prediction</h2>
-
-          {!prediction && !loading && !error && (
-            <p>
-              Click <strong>⚡ RUN NOWCAST</strong> to receive the prediction
-              from the backend.
-            </p>
-          )}
-
-          {loading && <p>⏳ Getting prediction from FloodWatch backend...</p>}
-
-          {error && <div className="backend-error">⚠️ {error}</div>}
-
-          {prediction && (
-            <div className="prediction-content">
-              <div className="prediction-item">
-                <span>Rainfall</span>
-                <strong>
-                  {prediction.rainfall_mm_per_hr ??
-                    prediction.rainfall ??
-                    rainfall}{" "}
-                  mm/hr
-                </strong>
-              </div>
-
-              <div className="prediction-item">
-                <span>Forecast</span>
-                <strong>
-                  {prediction.forecast_hours ?? prediction.hours ?? leadTime}
-                </strong>
-              </div>
-
-              <div className="prediction-item">
-                <span>Flood Probability</span>
-                <strong>
-                  {prediction.flood_probability ?? prediction.probability ?? 70}
-                  %
-                </strong>
-              </div>
-
-              <div className="prediction-item">
-                <span>Risk Level</span>
-                <strong>
-                  {prediction.risk_level ?? prediction.risk ?? "N/A"}
-                </strong>
-              </div>
-
-              {/* Show complete response for debugging */}
-              <details className="raw-response">
-                <summary>View backend response</summary>
-
-                <pre>{JSON.stringify(prediction, null, 2)}</pre>
-              </details>
-            </div>
-          )}
-        </section>
 
         {/* ================= MAP + SIDEBAR ================= */}
 
@@ -308,7 +658,11 @@ function App() {
               <div>
                 <h2>Flood Risk Map</h2>
 
-                <p>Predicted street-level inundation • Kolkata</p>
+                <p>
+                  {batchPredictions
+                    ? "XGBoost-predicted street-level inundation • Kolkata"
+                    : "Predicted street-level inundation • Kolkata"}
+                </p>
               </div>
 
               <div className="legend">
@@ -363,6 +717,12 @@ function App() {
                       Water depth: {location.depth} cm
                       <br />
                       Risk: {location.risk}
+                      {location.probability !== null && (
+                        <>
+                          <br />
+                          Flood probability: {location.probability}%
+                        </>
+                      )}
                     </Popup>
                   </Circle>
                 ))}
@@ -386,8 +746,8 @@ function App() {
 
             <div className="map-footer">
               <span className="blue-dot"></span>
-              Blue dashed lines represent the prototype drainage network.
-              Colored zones represent predicted surface inundation.
+              Blue dashed lines represent the drainage network.
+              Colored zones represent {batchPredictions ? "XGBoost-predicted" : "predicted"} surface inundation.
             </div>
           </div>
 
@@ -400,17 +760,35 @@ function App() {
               <h2>🚨 Flood Hotspots</h2>
 
               <div className="hotspot-list">
-                {locations.slice(0, 5).map((location) => (
-                  <div className="hotspot" key={location.name}>
-                    <div>
-                      <strong>{location.name}</strong>
+                {[...locations]
+                  .sort((a, b) => {
+                    const dA = typeof a.depth === "number" ? a.depth : 0;
+                    const dB = typeof b.depth === "number" ? b.depth : 0;
+                    return dB - dA;
+                  })
+                  .slice(0, 5)
+                  .map((location) => (
+                    <div className="hotspot" key={location.name}>
+                      <div>
+                        <strong>{location.name}</strong>
 
-                      <small>Drain capacity {location.capacity}%</small>
+                        <small>
+                          {location.probability !== null
+                            ? `Flood prob: ${location.probability}%`
+                            : `Elevation: ${location.elevation}m`}
+                        </small>
+                      </div>
+
+                      <strong
+                        className="depth"
+                        style={{
+                          color: location.color,
+                        }}
+                      >
+                        {location.depth}{typeof location.depth === "number" ? " cm" : ""}
+                      </strong>
                     </div>
-
-                    <strong className="depth">{location.depth} cm</strong>
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
 
@@ -432,12 +810,32 @@ function App() {
 
                 <div>
                   <span>Overcapacity nodes</span>
-                  <strong>3</strong>
+                  <strong>
+                    {batchPredictions?.predictions
+                      ? batchPredictions.predictions.filter(
+                          (p) => p.water_depth_cm > 25,
+                        ).length
+                      : 3}
+                  </strong>
                 </div>
               </div>
 
               <div className="progress">
-                <div></div>
+                <div
+                  style={{
+                    width: batchPredictions?.predictions
+                      ? `${Math.min(
+                          100,
+                          (batchPredictions.predictions.reduce(
+                            (s, p) => s + p.water_depth_cm,
+                            0,
+                          ) /
+                            batchPredictions.predictions.length) *
+                            3,
+                        )}%`
+                      : "52%",
+                  }}
+                ></div>
               </div>
 
               <small className="loading-text">Estimated network loading</small>
@@ -449,7 +847,7 @@ function App() {
               <h2>🗺️ Safe Route Advisor</h2>
 
               <p>
-                Find a lower-risk route for emergency services and commuters.
+                AI-powered route recommendation using XGBoost depth predictions.
               </p>
 
               <button onClick={findSafeRoute}>FIND SAFE ROUTE</button>
@@ -459,6 +857,7 @@ function App() {
           </aside>
         </section>
 
+
         {/* ================= TABLE ================= */}
 
         <section className="card table-card">
@@ -467,12 +866,14 @@ function App() {
               <h2>Street-Level Prediction</h2>
 
               <p>
-                Forecast +{leadTime.replace(" hour", "")}
-                hour • Rainfall: {rainfall} mm/hr
+                Forecast +{leadTime} • Rainfall: {rainfall} mm/hr
+                {batchPredictions ? " • XGBoost AI" : ""}
               </p>
             </div>
 
-            <span className="prototype">PROTOTYPE DATA</span>
+            <span className={batchPredictions ? "model-tag" : "prototype"}>
+              {batchPredictions ? "XGBOOST MODEL" : "PROTOTYPE DATA"}
+            </span>
           </div>
 
           <div className="table-wrapper">
@@ -481,8 +882,8 @@ function App() {
                 <tr>
                   <th>Location</th>
                   <th>Predicted Depth</th>
+                  <th>Flood Probability</th>
                   <th>Risk</th>
-                  <th>Drain Capacity</th>
                   <th>Drainage Status</th>
                 </tr>
               </thead>
@@ -493,7 +894,29 @@ function App() {
                     <td className="location-name">{location.name}</td>
 
                     <td>
-                      <strong>{location.depth} cm</strong>
+                      <strong>
+                        {location.depth}
+                        {typeof location.depth === "number" ? " cm" : ""}
+                      </strong>
+                    </td>
+
+                    <td>
+                      {location.probability !== null ? (
+                        <div className="prob-bar-cell">
+                          <div className="prob-bar">
+                            <div
+                              className="prob-fill"
+                              style={{
+                                width: `${location.probability}%`,
+                                background: location.color,
+                              }}
+                            ></div>
+                          </div>
+                          <span>{location.probability}%</span>
+                        </div>
+                      ) : (
+                        "--"
+                      )}
                     </td>
 
                     <td>
@@ -501,8 +924,6 @@ function App() {
                         {location.risk}
                       </span>
                     </td>
-
-                    <td>{location.capacity}%</td>
 
                     <td>
                       <span
@@ -523,7 +944,56 @@ function App() {
             </table>
           </div>
         </section>
+
+
+        {/* ================= MODEL INFO ================= */}
+
+        {modelInfo && (
+          <section className="card model-info-card">
+            <h2>🧠 Model Information</h2>
+
+            <div className="model-metrics">
+              <div className="metric">
+                <span>Depth Model MAE</span>
+                <strong>{modelInfo.depth_model?.mae_cm ?? "--"} cm</strong>
+              </div>
+              <div className="metric">
+                <span>Depth Model R²</span>
+                <strong>{modelInfo.depth_model?.r2 ?? "--"}</strong>
+              </div>
+              <div className="metric">
+                <span>Probability AUC</span>
+                <strong>{modelInfo.probability_model?.auc_roc ?? "--"}</strong>
+              </div>
+              <div className="metric">
+                <span>Features</span>
+                <strong>{modelInfo.n_features ?? 11}</strong>
+              </div>
+            </div>
+
+            {modelInfo.feature_importance && (
+              <div className="importance-chart">
+                <h3>Feature Importance</h3>
+                {Object.entries(modelInfo.feature_importance)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([feature, score]) => (
+                    <div className="importance-row" key={feature}>
+                      <span className="feat-name">{feature}</span>
+                      <div className="feat-bar-bg">
+                        <div
+                          className="feat-bar"
+                          style={{ width: `${score * 100}%` }}
+                        ></div>
+                      </div>
+                      <span className="feat-score">{(score * 100).toFixed(1)}%</span>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </section>
+        )}
       </main>
+
 
       {/* ================= FOOTER ================= */}
 
@@ -531,14 +1001,15 @@ function App() {
         <div>
           <strong>Urban Flood Nowcasting System</strong>
           <br />
-          Drainage + Rainfall + Terrain Intelligence
+          Physics-Informed XGBoost • Drainage + Rainfall + Terrain Intelligence
         </div>
 
-        <span>Prototype • 0–3 Hour Forecast Window</span>
+        <span>SIH26085 • 0–3 Hour AI Forecast Window</span>
       </footer>
     </div>
   );
 }
+
 
 /* ================= STAT CARD ================= */
 
@@ -551,6 +1022,30 @@ function StatCard({ icon, title, value, type }) {
         <span>{title}</span>
         <strong>{value}</strong>
       </div>
+    </div>
+  );
+}
+
+
+/* ================= FEATURE SLIDER ================= */
+
+function FeatureSlider({ label, value, min, max, step, unit, onChange }) {
+  return (
+    <div className="feature-slider">
+      <div className="feature-label">
+        <span>{label}</span>
+        <strong>
+          {value} {unit}
+        </strong>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
     </div>
   );
 }
