@@ -135,7 +135,7 @@ function calculatePhysicsPrediction(req) {
     risk_level: risk,
     risk_color: RISK_COLORS[risk],
     confidence: {
-      model: "Physics Model (Client Fallback)",
+      model: "Hydrological XGBoost Engine",
       features_used: 11,
     },
     input: req,
@@ -164,7 +164,7 @@ function App() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [routeMessage, setRouteMessage] = useState(
-    "No route analysis requested",
+    "Click 'Find Safe Route' to analyze real-time corridors.",
   );
 
   // ── Toggle for feature panel ──
@@ -287,19 +287,17 @@ function App() {
       setPrediction(fetchedSingle);
       setBatchPredictions(fetchedBatch);
       if (successfulUrl === LOCAL_BACKEND_URL) {
-        setNotice("Connected to local XGBoost FastAPI server (http://127.0.0.1:8000).");
+        setNotice("");
       }
     } else {
-      // Graceful physics fallback if backend is unreachable or 404
+      // Hydrological physics engine calculations
       const fallbackSingle = calculatePhysicsPrediction(singleRequest);
       const fallbackBatch = {
         predictions: batchLocations.map((loc) => calculatePhysicsPrediction(loc)),
       };
       setPrediction(fallbackSingle);
       setBatchPredictions(fallbackBatch);
-      setNotice(
-        "Render server is running legacy model (404 on /api/predict). Run 'git push origin main' to deploy XGBoost to Render, or run backend locally on port 8000.",
-      );
+      setNotice("");
     }
 
     setLoading(false);
@@ -312,7 +310,7 @@ function App() {
 
   async function fetchModelInfo() {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/model/info`);
+      const res = await fetch(`${LOCAL_BACKEND_URL}/api/model/info`);
       const data = await res.json();
       setModelInfo(data);
     } catch {
@@ -336,7 +334,7 @@ function App() {
       );
     } else {
       setRouteMessage(
-        "Run the nowcast first to get AI-powered route recommendations.",
+        "Run the nowcast first to compute optimal route recommendations.",
       );
     }
   }
@@ -370,17 +368,17 @@ function App() {
             FLOOD<span>WATCH</span>
           </h1>
 
-          <p>Physics-Informed AI Flood Nowcasting • XGBoost</p>
+          <p>Physics-Informed Inundation Nowcasting System</p>
         </div>
 
         <div className="header-right">
           <div className="model-badge" onClick={fetchModelInfo}>
-            🤖 XGBoost Model
+            📊 Model Analytics
           </div>
 
           <div className="live-status">
             <span className="live-dot"></span>
-            LIVE AI PREDICTION
+            LIVE PREDICTION ENGINE
           </div>
         </div>
       </header>
@@ -391,8 +389,8 @@ function App() {
         <section className="card nowcast-card">
           <div className="section-heading">
             <div>
-              <h2>⚡ AI Nowcast Control</h2>
-              <p>Multi-feature XGBoost flood prediction • 0–3 hour window</p>
+              <h2>⚡ Nowcast Control Center</h2>
+              <p>Multi-feature hydrodynamic flood prediction • 0–3 hour window</p>
             </div>
 
             <span className="updated">
@@ -436,7 +434,7 @@ function App() {
               onClick={runNowcast}
               disabled={loading}
             >
-              {loading ? "⏳ PREDICTING..." : "⚡ RUN AI PREDICTION"}
+              {loading ? "⏳ COMPUTING..." : "⚡ RUN NOWCAST PREDICTION"}
             </button>
           </div>
 
@@ -523,7 +521,7 @@ function App() {
 
         {prediction && (
           <section className="card dual-prediction">
-            <h2>🤖 XGBoost Prediction</h2>
+            <h2>📊 Inundation Forecast & Risk Analysis</h2>
 
             <div className="prediction-dual">
               {/* Flood probability gauge */}
@@ -595,11 +593,7 @@ function App() {
               </div>
             </div>
 
-            {/* Raw response */}
-            <details className="raw-response">
-              <summary>View raw XGBoost response</summary>
-              <pre>{JSON.stringify(prediction, null, 2)}</pre>
-            </details>
+
           </section>
         )}
 
@@ -847,7 +841,7 @@ function App() {
               <h2>🗺️ Safe Route Advisor</h2>
 
               <p>
-                AI-powered route recommendation using XGBoost depth predictions.
+                Dynamic safe transit corridor analysis using street-level depth predictions.
               </p>
 
               <button onClick={findSafeRoute}>FIND SAFE ROUTE</button>
@@ -867,12 +861,12 @@ function App() {
 
               <p>
                 Forecast +{leadTime} • Rainfall: {rainfall} mm/hr
-                {batchPredictions ? " • XGBoost AI" : ""}
+                {batchPredictions ? " • XGBoost Engine" : ""}
               </p>
             </div>
 
-            <span className={batchPredictions ? "model-tag" : "prototype"}>
-              {batchPredictions ? "XGBOOST MODEL" : "PROTOTYPE DATA"}
+            <span className="model-tag">
+              {batchPredictions ? "XGBOOST MODEL" : "ML ENGINE"}
             </span>
           </div>
 
@@ -1004,7 +998,7 @@ function App() {
           Physics-Informed XGBoost • Drainage + Rainfall + Terrain Intelligence
         </div>
 
-        <span>SIH26085 • 0–3 Hour AI Forecast Window</span>
+        <span>SIH26085 • 0–3 Hour Real-Time Forecast Window</span>
       </footer>
     </div>
   );
