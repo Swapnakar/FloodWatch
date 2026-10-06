@@ -1,1005 +1,916 @@
-import { useState } from "react";
-import {
-  MapContainer,
-  TileLayer,
-  Circle,
-  Popup,
-  Polyline,
-} from "react-leaflet";
-
-import "leaflet/dist/leaflet.css";
+import { useState, useEffect, useCallback, useRef } from "react";
+import Map, { Source, Layer, Marker, Popup as MapboxPopup } from "react-map-gl/mapbox";
+import "mapbox-gl/dist/mapbox-gl.css";
 import "./App.css";
-import { icon } from "leaflet";
+import SafeRouteAdvisor from "./components/SafeRouteAdvisor";
+import WeatherCard from "./components/WeatherCard";
+import LocationRisk from "./components/LocationRisk";
+import DataStatus from "./components/DataStatus";
+import RiskLegend from "./components/RiskLegend";
+import Sidebar from "./components/Sidebar";
+import SimulationPanel, { ALERT_COLORS } from "./components/SimulationPanel";
+import {
+  locationRisk, reverseGeocode, getDrainage, getManholes, simulatePoints, simulateDrainage, ApiError,
+} from "./services/api.js";
 
+const MANHOLE_COLORS = { junction: "#7c3aed", joint: "#475569", terminal: "#94a3b8" };
 
-// =========================
-// DEFAULT LOCATION DATA
-// =========================
+// Haversine distance in metres.
+function distanceM(lat1, lng1, lat2, lng2) {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.sqrt(a));
+}
 
-const DEFAULT_LOCATIONS = [
-  {
-    name: "Sealdah",
-    lat: 22.565,
-    lng: 88.371,
-    elevation: 7.2,
-    slope: 0.8,
-    imperviousness: 92,
-    drain_capacity: 350,
-    pipe_diameter: 0.9,
-    distance_to_drain: 8,
-    historical_floods: 8,
-  },
-  {
-    name: "EM Bypass",
-    lat: 22.535,
-    lng: 88.397,
-    elevation: 8.5,
-    slope: 1.2,
-    imperviousness: 85,
-    drain_capacity: 450,
-    pipe_diameter: 1.0,
-    distance_to_drain: 12,
-    historical_floods: 5,
-  },
-  {
-    name: "Howrah",
-    lat: 22.595,
-    lng: 88.263,
-    elevation: 6.5,
-    slope: 0.6,
-    imperviousness: 88,
-    drain_capacity: 380,
-    pipe_diameter: 0.8,
-    distance_to_drain: 10,
-    historical_floods: 7,
-  },
-  {
-    name: "Salt Lake",
-    lat: 22.58,
-    lng: 88.42,
-    elevation: 10.2,
-    slope: 1.8,
-    imperviousness: 72,
-    drain_capacity: 600,
-    pipe_diameter: 1.2,
-    distance_to_drain: 18,
-    historical_floods: 2,
-  },
-  {
-    name: "Esplanade",
-    lat: 22.565,
-    lng: 88.35,
-    elevation: 9.0,
-    slope: 1.4,
-    imperviousness: 78,
-    drain_capacity: 550,
-    pipe_diameter: 1.1,
-    distance_to_drain: 15,
-    historical_floods: 3,
-  },
-  {
-    name: "Park Street",
-    lat: 22.553,
-    lng: 88.352,
-    elevation: 9.5,
-    slope: 1.5,
-    imperviousness: 75,
-    drain_capacity: 520,
-    pipe_diameter: 1.0,
-    distance_to_drain: 20,
-    historical_floods: 2,
-  },
-];
-
-const REMOTE_BACKEND_URL = "https://floodwatch-x33s.onrender.com";
-const LOCAL_BACKEND_URL = "http://127.0.0.1:8000";
 
 const RISK_COLORS = {
   CRITICAL: "#d62828",
   HIGH: "#f97316",
+  ELEVATED: "#f97316",
   MODERATE: "#eab308",
   LOW: "#22c55e",
 };
 
-// Client-side physics engine fallback when backend is unreachable or returning 404
-function calculatePhysicsPrediction(req) {
-  const C = 0.30 + (req.imperviousness / 100) * 0.65;
-  const duration_hr = req.horizon_minutes / 60.0;
-  const intensity_factor = 1.0 / (1.0 + 0.3 * (duration_hr - 1.0));
-  const total_rainfall_mm = req.rainfall_1h * intensity_factor * duration_hr;
-  const runoff_m3 = (total_rainfall_mm * C / 1000.0) * 250000;
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
-  const drain_efficiency = Math.max(0.2, 1.0 - (req.rainfall_1h / 200.0));
-  const drain_distance_factor = Math.max(0.3, 1.0 - req.distance_to_drain / 100);
-  const drainage_removal_m3 = req.drain_capacity * duration_hr * drain_efficiency * drain_distance_factor;
+// ── Radius prediction grid ──
+const GRID_RADIUS_M = 1000;   // circle radius around the user
+const GRID_SPACING_M = 200;   // distance between neighbouring dots
+const GRID_CONCURRENCY = 8;   // parallel /api/location-risk requests
+const M_PER_DEG_LAT = 111320;
 
-  const excess_m3 = Math.max(0, runoff_m3 - drainage_removal_m3);
-  const topo_factor = Math.max(0.5, 2.0 - req.elevation / 10.0);
-  const slope_factor = Math.max(0.3, 1.0 - req.slope / 5.0);
-
-  let depth = (excess_m3 / 250000) * topo_factor * slope_factor * 100;
-  depth += req.historical_floods * 0.5;
-  depth = Math.max(0.0, Math.round(depth * 10) / 10);
-
-  const x = (depth - 10) / 5.0;
-  const prob = Math.round((1.0 / (1.0 + Math.exp(-x))) * 100) / 100;
-
-  let risk = "LOW";
-  if (prob >= 0.80) risk = "CRITICAL";
-  else if (prob >= 0.60) risk = "HIGH";
-  else if (prob >= 0.35) risk = "MODERATE";
-
-  return {
-    water_depth_cm: depth,
-    flood_probability: prob,
-    risk_level: risk,
-    risk_color: RISK_COLORS[risk],
-    confidence: {
-      model: "Hydrological XGBoost Engine",
-      features_used: 11,
-    },
-    input: req,
-  };
+// Hexagonal grid of points clipped to a circle (denser, more even than a square grid).
+function circlePoints(centerLat, centerLng, radiusM, spacingM) {
+  const mPerDegLng = M_PER_DEG_LAT * Math.cos((centerLat * Math.PI) / 180);
+  const rowStep = spacingM * Math.sqrt(3) / 2;
+  const rows = Math.floor(radiusM / rowStep);
+  const points = [];
+  for (let r = -rows; r <= rows; r++) {
+    const dy = r * rowStep;
+    const xOffset = (Math.abs(r) % 2) * (spacingM / 2);
+    const cols = Math.ceil(radiusM / spacingM) + 1;
+    for (let c = -cols; c <= cols; c++) {
+      const dx = c * spacingM + xOffset;
+      if (dx * dx + dy * dy > radiusM * radiusM) continue;
+      points.push({
+        lat: centerLat + dy / M_PER_DEG_LAT,
+        lng: centerLng + dx / mPerDegLng,
+      });
+    }
+  }
+  return points;
 }
 
+// GeoJSON polygon approximating the radius circle, for drawing the outline.
+function circlePolygon(centerLat, centerLng, radiusM, steps = 64) {
+  const mPerDegLng = M_PER_DEG_LAT * Math.cos((centerLat * Math.PI) / 180);
+  const ring = [];
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * 2 * Math.PI;
+    ring.push([
+      centerLng + (radiusM * Math.cos(a)) / mPerDegLng,
+      centerLat + (radiusM * Math.sin(a)) / M_PER_DEG_LAT,
+    ]);
+  }
+  return { type: "Feature", geometry: { type: "Polygon", coordinates: [ring] }, properties: {} };
+}
 
 function App() {
-  // ── Rainfall & forecast controls ──
-  const [rainfall, setRainfall] = useState(50);
-  const [leadTime, setLeadTime] = useState("1 hour");
+  // ── Location & Dynamic Grid ──
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [locationName, setLocationName] = useState(null);
+  const [dynamicLocations, setDynamicLocations] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [drainageData, setDrainageData] = useState(null);
+  const [manholeData, setManholeData] = useState(null);
+  const [selectedManhole, setSelectedManhole] = useState(null);
+  const drainageMapRef = useRef(null);
+  const [activeTab, setActiveTab] = useState('prediction');
 
-  // ── Terrain / drainage feature controls ──
-  const [elevation, setElevation] = useState(8.0);
-  const [slope, setSlope] = useState(1.0);
-  const [imperviousness, setImperviousness] = useState(80);
-  const [drainCapacity, setDrainCapacity] = useState(500);
-  const [pipeDiameter, setPipeDiameter] = useState(1.0);
-  const [distanceToDrain, setDistanceToDrain] = useState(15);
-  const [historicalFloods, setHistoricalFloods] = useState(3);
+  // ── Route state (only for route tab) ──
+  const [routeResult, setRouteResult] = useState(null);
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
+  const [selectedSegment, setSelectedSegment] = useState(null);
+  const routeMapRef = useRef(null);
 
-  // ── Prediction state ──
-  const [prediction, setPrediction] = useState(null);
-  const [batchPredictions, setBatchPredictions] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [routeMessage, setRouteMessage] = useState(
-    "Click 'Find Safe Route' to analyze real-time corridors.",
-  );
+  // ── Simulation state (only for simulation tab) ──
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simLocations, setSimLocations] = useState([]);
+  const [selectedSimLocation, setSelectedSimLocation] = useState(null);
+  const [simMode, setSimMode] = useState("flood");          // "flood" | "drainage"
+  const [drainageSim, setDrainageSim] = useState(null);     // /api/simulate/drainage result
+  const [selectedSimPipe, setSelectedSimPipe] = useState(null);
+  const [simError, setSimError] = useState(null);
 
-  // ── Toggle for feature panel ──
-  const [showFeatures, setShowFeatures] = useState(false);
+  // ── Fetch Drainage Network ──
+  useEffect(() => {
+    getDrainage().then(res => setDrainageData(res.data)).catch(console.error);
+    getManholes().then(res => setManholeData(res.data)).catch(console.error);
+  }, []);
 
-  // ── Model info ──
-  const [modelInfo, setModelInfo] = useState(null);
-
-
-  // =========================
-  // DERIVED LOCATIONS (with predictions)
-  // =========================
-
-  const locations = DEFAULT_LOCATIONS.map((loc, idx) => {
-    const pred = batchPredictions?.predictions?.[idx];
-    return {
-      ...loc,
-      depth: pred ? pred.water_depth_cm : "--",
-      risk: pred ? pred.risk_level : "MODERATE",
-      probability: pred ? Math.round(pred.flood_probability * 100) : null,
-      color: pred
-        ? (RISK_COLORS[pred.risk_level] || "#94a3b8")
-        : "#eab308",
-      capacity: pred
-        ? Math.round(100 - pred.water_depth_cm * 1.5)
-        : 65,
-      status: pred
-        ? (pred.water_depth_cm > 25 ? "Overloaded" : "Operating")
-        : "Operating",
-    };
-  });
-
-
-  // =========================
-  // XGBOOST PREDICTION (WITH FALLBACK)
-  // =========================
-
-  async function runNowcast() {
-    setLoading(true);
-    setError("");
-    setNotice("");
-    setPrediction(null);
-    setBatchPredictions(null);
-
-    const horizonMap = {
-      "30 minutes": 30,
-      "1 hour": 60,
-      "2 hours": 120,
-      "3 hours": 180,
-    };
-    const horizonMinutes = horizonMap[leadTime] || 60;
-
-    const singleRequest = {
-      rainfall_30m: Math.round(rainfall * 1.2),
-      rainfall_1h: rainfall,
-      rainfall_3h: Math.round(rainfall * 2.5),
-      horizon_minutes: horizonMinutes,
-      elevation,
-      slope,
-      imperviousness,
-      drain_capacity: drainCapacity,
-      pipe_diameter: pipeDiameter,
-      distance_to_drain: distanceToDrain,
-      historical_floods: historicalFloods,
-    };
-
-    const batchLocations = DEFAULT_LOCATIONS.map((loc) => ({
-      rainfall_30m: Math.round(rainfall * 1.2),
-      rainfall_1h: rainfall,
-      rainfall_3h: Math.round(rainfall * 2.5),
-      horizon_minutes: horizonMinutes,
-      elevation: loc.elevation,
-      slope: loc.slope,
-      imperviousness: loc.imperviousness,
-      drain_capacity: loc.drain_capacity,
-      pipe_diameter: loc.pipe_diameter,
-      distance_to_drain: loc.distance_to_drain,
-      historical_floods: loc.historical_floods,
-    }));
-
-    // Try candidate backends in priority order
-    const candidateUrls = [LOCAL_BACKEND_URL, REMOTE_BACKEND_URL];
-    let fetchedSingle = null;
-    let fetchedBatch = null;
-    let successfulUrl = null;
-
-    for (const url of candidateUrls) {
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 4000);
-
-        const [singleRes, batchRes] = await Promise.all([
-          fetch(`${url}/api/predict`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(singleRequest),
-            signal: controller.signal,
-          }),
-          fetch(`${url}/api/predict/batch`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ locations: batchLocations }),
-            signal: controller.signal,
-          }),
-        ]);
-        clearTimeout(timer);
-
-        if (singleRes.ok && batchRes.ok) {
-          fetchedSingle = await singleRes.json();
-          fetchedBatch = await batchRes.json();
-          successfulUrl = url;
-          break;
-        }
-      } catch {
-        // Continue to next candidate
-      }
+  // ── Auto-fit bounds when route changes ──
+  useEffect(() => {
+    if (activeTab !== 'route') return;
+    if (routeResult?.routes?.[selectedRouteIndex]?.geometry?.coordinates?.length > 0) {
+      const coords = routeResult.routes[selectedRouteIndex].geometry.coordinates;
+      let minLng = 180, maxLng = -180, minLat = 90, maxLat = -90;
+      coords.forEach(([lng, lat]) => {
+        if (lng < minLng) minLng = lng;
+        if (lng > maxLng) maxLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+      });
+      routeMapRef.current?.fitBounds(
+        [[minLng, minLat], [maxLng, maxLat]],
+        { padding: 60, duration: 1000 }
+      );
     }
+  }, [routeResult, selectedRouteIndex, activeTab]);
 
-    if (fetchedSingle && fetchedBatch) {
-      setPrediction(fetchedSingle);
-      setBatchPredictions(fetchedBatch);
-      if (successfulUrl === LOCAL_BACKEND_URL) {
-        setNotice("");
-      }
-    } else {
-      // Hydrological physics engine calculations
-      const fallbackSingle = calculatePhysicsPrediction(singleRequest);
-      const fallbackBatch = {
-        predictions: batchLocations.map((loc) => calculatePhysicsPrediction(loc)),
-      };
-      setPrediction(fallbackSingle);
-      setBatchPredictions(fallbackBatch);
-      setNotice("");
-    }
+  // ── Auto-Detect Location & Generate Grid ──
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setCurrentLocation({ lat: latitude, lng: longitude });
+        
+        // Reverse Geocode for Navbar
+        reverseGeocode(latitude, longitude).then((res) => {
+          const geoData = res.data;
+          // Our backend returns Mapbox-style { candidates: [{name, context: {locality, place, region}}] }
+          if (geoData?.candidates?.[0]) {
+            const c = geoData.candidates[0];
+            const ctx = c.context || {};
+            // Build a human-readable name: "Locality, City" or "Neighborhood, City"
+            const parts = [ctx.locality || ctx.neighborhood || c.name, ctx.place || ctx.region].filter(Boolean);
+            setLocationName(parts.length > 0 ? parts.join(", ") : c.name);
+          } else if (geoData?.display_name) {
+            setLocationName(geoData.display_name.split(",").slice(0, 2).join(",").trim());
+          } else if (geoData?.features?.[0]?.place_name) {
+            setLocationName(geoData.features[0].place_name.split(",").slice(0, 2).join(",").trim());
+          } else {
+            setLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+          }
+        }).catch(() => setLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`));
 
-    setLoading(false);
-  }
+      },
+      (err) => console.error("Geolocation error:", err),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  }, []);
 
+  const generateRadiusGrid = async (centerLat, centerLng, simRainfall = null, simDuration = null) => {
+    const horizon = simDuration || 60;
+    const points = circlePoints(centerLat, centerLng, GRID_RADIUS_M, GRID_SPACING_M);
 
-  // =========================
-  // FETCH MODEL INFO
-  // =========================
+    const fetchPoint = ({ lat: plat, lng: plng }) =>
+      locationRisk(plat, plng, horizon, simRainfall).then(res => {
+        const data = res.data;
+        return {
+          name: `Lat ${plat.toFixed(4)}, Lng ${plng.toFixed(4)}`,
+          lat: plat,
+          lng: plng,
+          depth: data.water_depth_cm || 0,
+          risk: data.risk_level || "LOW",
+          probability: data.flood_probability ? Math.round(data.flood_probability * 100) : 0,
+          color: RISK_COLORS[data.risk_level] || "#22c55e",
+        };
+      }).catch(() => null);
 
-  async function fetchModelInfo() {
     try {
-      const res = await fetch(`${LOCAL_BACKEND_URL}/api/model/info`);
-      const data = await res.json();
-      setModelInfo(data);
+      // Limit concurrency so ~80 points don't flood the backend at once.
+      const results = new Array(points.length);
+      let next = 0;
+      const worker = async () => {
+        while (next < points.length) {
+          const i = next++;
+          results[i] = await fetchPoint(points[i]);
+        }
+      };
+      await Promise.all(Array.from({ length: GRID_CONCURRENCY }, worker));
+      return results.filter(r => r !== null);
     } catch {
-      console.error("Could not fetch model info");
+      return [];
     }
-  }
+  };
 
+  const radiusCircle = currentLocation
+    ? circlePolygon(currentLocation.lat, currentLocation.lng, GRID_RADIUS_M)
+    : null;
 
-  // =========================
-  // SAFE ROUTE (uses predictions)
-  // =========================
+  // Manholes closest to the user, nearest first.
+  const nearbyManholes = (() => {
+    if (!currentLocation || !manholeData?.features) return [];
+    return manholeData.features
+      .map((f) => {
+        const [lng, lat] = f.geometry.coordinates;
+        return { ...f.properties, lat, lng,
+          distance: distanceM(currentLocation.lat, currentLocation.lng, lat, lng) };
+      })
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 5);
+  })();
 
-  function findSafeRoute() {
-    if (batchPredictions?.predictions) {
-      const safest = batchPredictions.predictions
-        .map((p, i) => ({ ...p, name: DEFAULT_LOCATIONS[i].name }))
-        .sort((a, b) => a.water_depth_cm - b.water_depth_cm)[0];
+  const locateManhole = (mh) => {
+    setSelectedManhole(mh);
+    drainageMapRef.current?.flyTo({ center: [mh.lng, mh.lat], zoom: 18, duration: 1200 });
+  };
 
-      setRouteMessage(
-        `Suggested safer corridor: ${safest.name}. Predicted water depth: ${safest.water_depth_cm} cm (${Math.round(safest.flood_probability * 100)}% flood probability).`,
+  const handleDrainageMapClick = (e) => {
+    const f = e.features?.[0];
+    if (!f) { setSelectedManhole(null); return; }
+    const [lng, lat] = f.geometry.coordinates;
+    const distance = currentLocation
+      ? distanceM(currentLocation.lat, currentLocation.lng, lat, lng) : null;
+    setSelectedManhole({ ...f.properties, lat, lng, distance });
+  };
+
+  // Prediction grid runs only when the user clicks Predict (no auto-predict).
+  const [isGridLoading, setIsGridLoading] = useState(false);
+  const handlePredictGrid = async (horizonMinutes) => {
+    if (!currentLocation) return;
+    setIsGridLoading(true);
+    setSelectedLocation(null);
+    try {
+      setDynamicLocations(
+        await generateRadiusGrid(currentLocation.lat, currentLocation.lng, null, horizonMinutes),
       );
-    } else {
-      setRouteMessage(
-        "Run the nowcast first to compute optimal route recommendations.",
-      );
+    } finally {
+      setIsGridLoading(false);
     }
-  }
+  };
 
+  // Scenario flood risk for the whole radius grid in ONE request.
+  const runFloodSimulation = async ({ rainfall, duration }) => {
+    const points = circlePoints(currentLocation.lat, currentLocation.lng, GRID_RADIUS_M, GRID_SPACING_M)
+      .map((p) => ({ lat: p.lat, lon: p.lng }));
+    const { data } = await simulatePoints(points, rainfall, duration);
+    return data.points
+      .filter((p) => p.risk_level)
+      .map((p) => ({
+        name: `Lat ${p.lat.toFixed(4)}, Lng ${p.lon.toFixed(4)}`,
+        lat: p.lat,
+        lng: p.lon,
+        risk: p.risk_level,
+        probability: Math.round((p.flood_probability || 0) * 100),
+        drainLoad: p.drain_load_pct,
+        drainAlert: p.drain_alert,
+        color: RISK_COLORS[p.risk_level] || "#22c55e",
+      }));
+  };
 
-  // =========================
-  // STATS
-  // =========================
+  const handleSimulate = async (params) => {
+    if (!currentLocation) return;
+    setSimError(null);
+    setSelectedSimLocation(null);
+    setSelectedSimPipe(null);
+    if (!params) {
+      // Reset: back to live data / clear the drainage scenario.
+      setSimLocations([]);
+      setDrainageSim(null);
+      return;
+    }
+    setIsSimulating(true);
+    try {
+      if (simMode === "drainage") {
+        const { data } = await simulateDrainage(
+          params.rainfall, params.duration, currentLocation.lat, currentLocation.lng, GRID_RADIUS_M,
+        );
+        setDrainageSim(data);
+      } else {
+        setSimLocations(await runFloodSimulation(params));
+      }
+    } catch (err) {
+      const detail = err instanceof ApiError ? err.detail : null;
+      setSimError(typeof detail === "string" ? detail : "Simulation failed. Is the backend running?");
+    } finally {
+      setIsSimulating(false);
+    }
+  };
 
-  const avgDepth = batchPredictions?.predictions
-    ? (batchPredictions.predictions.reduce((s, p) => s + p.water_depth_cm, 0)
-       / batchPredictions.predictions.length).toFixed(1)
-    : "--";
-
-  const criticalCount = batchPredictions?.predictions
-    ? batchPredictions.predictions.filter((p) => p.risk_level === "CRITICAL").length
-    : 0;
-
-  const highCount = batchPredictions?.predictions
-    ? batchPredictions.predictions.filter((p) => p.risk_level === "HIGH").length
-    : 0;
+  const handleSimMapClick = (e) => {
+    const f = e.features?.[0];
+    if (!f) { setSelectedSimPipe(null); return; }
+    setSelectedSimPipe({ ...f.properties, lng: e.lngLat.lng, lat: e.lngLat.lat });
+  };
 
 
   return (
-    <div className="app">
-      {/* ================= HEADER ================= */}
-
-      <header className="header">
-        <div>
-          <h1>
-            FLOOD<span>WATCH</span>
-          </h1>
-
-          <p>Physics-Informed Inundation Nowcasting System</p>
-        </div>
-
-        <div className="header-right">
-          <div className="model-badge" onClick={fetchModelInfo}>
-            📊 Model Analytics
+    <div className="app-layout">
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      
+      <div className="app-content-area">
+        {/* ================= HEADER ================= */}
+        <header className="header">
+          <div className="header-left">
+            <h1>
+              FLOOD<span>EXA</span>
+            </h1>
           </div>
-
-          <div className="live-status">
-            <span className="live-dot"></span>
-            LIVE PREDICTION ENGINE
-          </div>
-        </div>
-      </header>
-
-      <main className="container">
-        {/* ================= NOWCAST CONTROL ================= */}
-
-        <section className="card nowcast-card">
-          <div className="section-heading">
-            <div>
-              <h2>⚡ Nowcast Control Center</h2>
-              <p>Multi-feature hydrodynamic flood prediction • 0–3 hour window</p>
-            </div>
-
-            <span className="updated">
-              Updated {new Date().toLocaleTimeString()}
+          <div className="header-right">
+            <span className="detected-location">
+              📍 {locationName || "Detecting location..."}
             </span>
           </div>
+        </header>
 
-          {/* Primary controls */}
-          <div className="control-row">
-            <div className="rain-control">
-              <div className="control-label">
-                <span>🌧️ Rainfall Intensity</span>
-                <strong>{rainfall} mm/hr</strong>
+        <main className="app-main">
+          {/* ================= WEATHER ================= */}
+          <section className="dashboard-top-row">
+            <div className="panel weather-panel" style={{ padding: "16px 24px", minHeight: "auto" }}>
+              <WeatherCard />
+            </div>
+          </section>
+
+          {/* ================= TAB CONTENT ================= */}
+
+          {/* ── PREDICTION TAB ── */}
+          {activeTab === 'prediction' && (
+            <section className="tab-content">
+              <div className="tab-split-layout">
+                <div className="tab-panel-col">
+                  <div className="panel">
+                    {currentLocation && (
+                      <LocationRisk lat={currentLocation.lat} lng={currentLocation.lng} onPredict={handlePredictGrid} />
+                    )}
+                  </div>
+                </div>
+                <div className="tab-map-col">
+                  <div className="panel tab-map-wrapper">
+                    <div className="map-header-content">
+                      <h4 className="panel-title">Flood Risk Map</h4>
+                      <p className="panel-desc">
+                        {isGridLoading
+                          ? "Predicting flood risk around you…"
+                          : dynamicLocations.length > 0
+                            ? "Dynamic risk assessment around your location (1km radius)"
+                            : "Click Predict to assess flood risk around your location (1km radius)"}
+                      </p>
+                    </div>
+                    {currentLocation && (
+                      <div className="tab-map-container">
+                        <Map
+                          key="prediction-map"
+                          initialViewState={{
+                            longitude: currentLocation.lng,
+                            latitude: currentLocation.lat,
+                            zoom: 14
+                          }}
+                          style={{ width: "100%", height: "100%", borderRadius: "12px" }}
+                          mapStyle="mapbox://styles/mapbox/streets-v12"
+                          mapboxAccessToken={MAPBOX_TOKEN}
+                        >
+                          {/* Current location pin */}
+                          <Marker longitude={currentLocation.lng} latitude={currentLocation.lat} anchor="center">
+                            <div style={{
+                              width: '18px', height: '18px',
+                              borderRadius: '50%', background: '#0066cc',
+                              border: '3px solid #fff', boxShadow: '0 0 12px rgba(0,102,204,0.5)',
+                              position: 'relative'
+                            }}>
+                              <div style={{
+                                position: 'absolute', top: '-6px', left: '-6px',
+                                width: '30px', height: '30px',
+                                borderRadius: '50%', border: '2px solid rgba(0,102,204,0.3)',
+                                animation: 'pulse-ring 2s ease-out infinite'
+                              }} />
+                            </div>
+                          </Marker>
+
+                          {/* Prediction radius */}
+                          {radiusCircle && (
+                            <Source id="radius-pred" type="geojson" data={radiusCircle}>
+                              <Layer id="radius-pred-fill" type="fill" paint={{ "fill-color": "#0066cc", "fill-opacity": 0.06 }} />
+                              <Layer id="radius-pred-line" type="line" paint={{ "line-color": "#0066cc", "line-width": 2, "line-dasharray": [2, 2], "line-opacity": 0.7 }} />
+                            </Source>
+                          )}
+
+                          {/* Risk markers */}
+                          {dynamicLocations.map((location) => (
+                            <Marker key={location.name} longitude={location.lng} latitude={location.lat} anchor="center">
+                              <div
+                                style={{
+                                  width: '14px', height: '14px', borderRadius: '50%',
+                                  backgroundColor: location.color, opacity: 0.8,
+                                  border: `2px solid #fff`, cursor: 'pointer'
+                                }}
+                                onClick={(e) => { e.stopPropagation(); setSelectedLocation(location); }}
+                              />
+                            </Marker>
+                          ))}
+
+                          {selectedLocation && (
+                            <MapboxPopup
+                              longitude={selectedLocation.lng} latitude={selectedLocation.lat}
+                              anchor="bottom" onClose={() => setSelectedLocation(null)} closeOnClick={false}
+                            >
+                              <div style={{color: '#17171c', fontSize: '13px'}}>
+                                <strong>{selectedLocation.name}</strong><br />
+                                Water depth: {selectedLocation.depth} cm<br />
+                                Risk: <strong style={{color: selectedLocation.color}}>{selectedLocation.risk}</strong><br />
+                                Probability: {selectedLocation.probability}%
+                              </div>
+                            </MapboxPopup>
+                          )}
+
+                          {/* Drainage Layer */}
+                          {drainageData && (
+                            <Source id="drainage-pred" type="geojson" data={drainageData}>
+                              <Layer id="drainage-pred-line" type="line" paint={{
+                                "line-color": "#0ea5e9", "line-width": 1.5, "line-opacity": 0.4
+                              }} />
+                            </Source>
+                          )}
+                        </Map>
+                        <RiskLegend />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-
-              <input
-                type="range"
-                min="0"
-                max="150"
-                value={rainfall}
-                onChange={(e) => setRainfall(Number(e.target.value))}
-              />
-            </div>
-
-            <div className="forecast-control">
-              <label>Forecast Lead Time</label>
-
-              <select
-                value={leadTime}
-                onChange={(e) => setLeadTime(e.target.value)}
-              >
-                <option>30 minutes</option>
-                <option>1 hour</option>
-                <option>2 hours</option>
-                <option>3 hours</option>
-              </select>
-            </div>
-
-            <button
-              className="run-button"
-              onClick={runNowcast}
-              disabled={loading}
-            >
-              {loading ? "⏳ COMPUTING..." : "⚡ RUN NOWCAST PREDICTION"}
-            </button>
-          </div>
-
-          {/* Feature toggle */}
-          <button
-            className="toggle-features"
-            onClick={() => setShowFeatures(!showFeatures)}
-          >
-            {showFeatures ? "▲ Hide" : "▼ Show"} Terrain & Drainage Features
-          </button>
-
-          {/* Advanced feature controls */}
-          {showFeatures && (
-            <div className="features-grid">
-              <FeatureSlider
-                label="🏔️ Elevation"
-                value={elevation}
-                min={2}
-                max={15}
-                step={0.1}
-                unit="m"
-                onChange={setElevation}
-              />
-              <FeatureSlider
-                label="📐 Slope"
-                value={slope}
-                min={0.1}
-                max={5}
-                step={0.1}
-                unit="%"
-                onChange={setSlope}
-              />
-              <FeatureSlider
-                label="🏗️ Imperviousness"
-                value={imperviousness}
-                min={30}
-                max={98}
-                step={1}
-                unit="%"
-                onChange={setImperviousness}
-              />
-              <FeatureSlider
-                label="🚰 Drain Capacity"
-                value={drainCapacity}
-                min={100}
-                max={1200}
-                step={10}
-                unit="m³/hr"
-                onChange={setDrainCapacity}
-              />
-              <FeatureSlider
-                label="⭕ Pipe Diameter"
-                value={pipeDiameter}
-                min={0.3}
-                max={1.8}
-                step={0.1}
-                unit="m"
-                onChange={setPipeDiameter}
-              />
-              <FeatureSlider
-                label="📏 Distance to Drain"
-                value={distanceToDrain}
-                min={2}
-                max={60}
-                step={1}
-                unit="m"
-                onChange={setDistanceToDrain}
-              />
-              <FeatureSlider
-                label="📊 Historical Floods"
-                value={historicalFloods}
-                min={0}
-                max={20}
-                step={1}
-                unit="events"
-                onChange={setHistoricalFloods}
-              />
-            </div>
+            </section>
           )}
-        </section>
 
-
-        {/* ================= AI PREDICTION RESULT ================= */}
-
-        {prediction && (
-          <section className="card dual-prediction">
-            <h2>📊 Inundation Forecast & Risk Analysis</h2>
-
-            <div className="prediction-dual">
-              {/* Flood probability gauge */}
-              <div className="gauge-card">
-                <div className="gauge-label">Flood Probability</div>
-                <div
-                  className="gauge-ring"
-                  style={{
-                    "--progress": `${Math.round(prediction.flood_probability * 100)}%`,
-                    "--color": prediction.risk_color || RISK_COLORS[prediction.risk_level],
-                  }}
-                >
-                  <div className="gauge-value">
-                    {Math.round(prediction.flood_probability * 100)}%
+          {/* ── SAFE ROUTE TAB ── */}
+          {activeTab === 'route' && (
+            <section className="tab-content">
+              <div className="tab-split-layout">
+                <div className="tab-panel-col">
+                  <div className="panel">
+                    <SafeRouteAdvisor 
+                      horizon={60} 
+                      onResult={(res) => { setRouteResult(res); setSelectedRouteIndex(0); setSelectedSegment(null); }} 
+                      selectedRouteIndex={selectedRouteIndex}
+                      onSelectRoute={setSelectedRouteIndex}
+                    />
                   </div>
                 </div>
-                <div
-                  className="gauge-risk"
-                  style={{
-                    color: prediction.risk_color || RISK_COLORS[prediction.risk_level],
-                  }}
-                >
-                  {prediction.risk_level}
-                </div>
-              </div>
-
-              {/* Water depth indicator */}
-              <div className="depth-card">
-                <div className="depth-label">Predicted Water Depth</div>
-                <div className="depth-visual">
-                  <div
-                    className="depth-fill"
-                    style={{
-                      height: `${Math.min(100, prediction.water_depth_cm * 2)}%`,
-                      background: prediction.risk_color || RISK_COLORS[prediction.risk_level],
-                    }}
-                  ></div>
-                  <div className="depth-value">
-                    {prediction.water_depth_cm} cm
-                  </div>
-                </div>
-                <div className="depth-scale">
-                  <span>0 cm</span>
-                  <span>50 cm</span>
-                </div>
-              </div>
-
-              {/* Model confidence */}
-              <div className="confidence-card">
-                <div className="confidence-label">Model Details</div>
-                <div className="confidence-items">
-                  <div>
-                    <span>Model</span>
-                    <strong>{prediction.confidence?.model || "XGBoost"}</strong>
-                  </div>
-                  <div>
-                    <span>Features Used</span>
-                    <strong>{prediction.confidence?.features_used || 11}</strong>
-                  </div>
-                  <div>
-                    <span>Rainfall Input</span>
-                    <strong>{rainfall} mm/hr</strong>
-                  </div>
-                  <div>
-                    <span>Horizon</span>
-                    <strong>{leadTime}</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-
-          </section>
-        )}
-
-        {notice && (
-          <div
-            className="backend-notice"
-            style={{
-              margin: "0 0 18px",
-              padding: "12px 18px",
-              background: "#eff6ff",
-              border: "1px solid #bfdbfe",
-              color: "#1d4ed8",
-              borderRadius: "10px",
-              fontSize: "12px",
-              lineHeight: "1.5",
-            }}
-          >
-            💡 {notice}
-          </div>
-        )}
-
-        {error && (
-          <section className="card backend-result">
-            <div className="backend-error">⚠️ {error}</div>
-          </section>
-        )}
-
-
-        {/* ================= KPI CARDS ================= */}
-
-        <section className="stats-grid">
-          <StatCard icon="🌧️" title="RAINFALL" value={`${rainfall} mm/hr`} />
-          <StatCard icon="💧" title="AVG. WATER DEPTH" value={`${avgDepth} cm`} />
-          <StatCard
-            icon="🚨"
-            title="CRITICAL ZONES"
-            value={String(criticalCount)}
-            type="critical"
-          />
-          <StatCard
-            icon="⚠️"
-            title="HIGH RISK ZONES"
-            value={String(highCount)}
-            type="warning"
-          />
-        </section>
-
-
-        {/* ================= MAP + SIDEBAR ================= */}
-
-        <section className="dashboard-grid">
-          {/* MAP */}
-
-          <div className="card map-card">
-            <div className="map-header">
-              <div>
-                <h2>Flood Risk Map</h2>
-
-                <p>
-                  {batchPredictions
-                    ? "XGBoost-predicted street-level inundation • Kolkata"
-                    : "Predicted street-level inundation • Kolkata"}
-                </p>
-              </div>
-
-              <div className="legend">
-                <span>
-                  <i className="low"></i>
-                  Low
-                </span>
-
-                <span>
-                  <i className="moderate"></i>
-                  Moderate
-                </span>
-
-                <span>
-                  <i className="high"></i>
-                  High
-                </span>
-
-                <span>
-                  <i className="critical"></i>
-                  Critical
-                </span>
-              </div>
-            </div>
-
-            <div className="map-wrapper">
-              <MapContainer
-                center={[22.5726, 88.3639]}
-                zoom={9}
-                scrollWheelZoom={true}
-                className="map"
-              >
-                <TileLayer
-                  attribution="&copy; OpenStreetMap contributors"
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-
-                {locations.map((location) => (
-                  <Circle
-                    key={location.name}
-                    center={[location.lat, location.lng]}
-                    radius={1200}
-                    pathOptions={{
-                      color: location.color,
-                      fillColor: location.color,
-                      fillOpacity: 0.25,
-                    }}
-                  >
-                    <Popup>
-                      <strong>{location.name}</strong>
-                      <br />
-                      Water depth: {location.depth} cm
-                      <br />
-                      Risk: {location.risk}
-                      {location.probability !== null && (
-                        <>
-                          <br />
-                          Flood probability: {location.probability}%
-                        </>
-                      )}
-                    </Popup>
-                  </Circle>
-                ))}
-
-                <Polyline
-                  positions={[
-                    [22.565, 88.371],
-                    [22.58, 88.42],
-                    [22.535, 88.397],
-                    [22.553, 88.352],
-                    [22.565, 88.35],
-                  ]}
-                  pathOptions={{
-                    color: "#2563eb",
-                    weight: 4,
-                    dashArray: "8 8",
-                  }}
-                />
-              </MapContainer>
-            </div>
-
-            <div className="map-footer">
-              <span className="blue-dot"></span>
-              Blue dashed lines represent the drainage network.
-              Colored zones represent {batchPredictions ? "XGBoost-predicted" : "predicted"} surface inundation.
-            </div>
-          </div>
-
-          {/* ================= SIDEBAR ================= */}
-
-          <aside className="sidebar">
-            {/* HOTSPOTS */}
-
-            <div className="card sidebar-card">
-              <h2>🚨 Flood Hotspots</h2>
-
-              <div className="hotspot-list">
-                {[...locations]
-                  .sort((a, b) => {
-                    const dA = typeof a.depth === "number" ? a.depth : 0;
-                    const dB = typeof b.depth === "number" ? b.depth : 0;
-                    return dB - dA;
-                  })
-                  .slice(0, 5)
-                  .map((location) => (
-                    <div className="hotspot" key={location.name}>
-                      <div>
-                        <strong>{location.name}</strong>
-
-                        <small>
-                          {location.probability !== null
-                            ? `Flood prob: ${location.probability}%`
-                            : `Elevation: ${location.elevation}m`}
-                        </small>
-                      </div>
-
-                      <strong
-                        className="depth"
-                        style={{
-                          color: location.color,
+                <div className="tab-map-col">
+                  <div className="panel tab-map-wrapper">
+                    <div className="map-header-content">
+                      <h4 className="panel-title">Route Map</h4>
+                      <p className="panel-desc">Visualize route flood risk in real-time</p>
+                    </div>
+                    <div className="tab-map-container">
+                      <Map
+                        ref={routeMapRef}
+                        key="route-map"
+                        initialViewState={{
+                          longitude: currentLocation?.lng || 88.3639,
+                          latitude: currentLocation?.lat || 22.5726,
+                          zoom: 13
                         }}
+                        style={{ width: "100%", height: "100%", borderRadius: "12px" }}
+                        mapStyle="mapbox://styles/mapbox/streets-v12"
+                        mapboxAccessToken={MAPBOX_TOKEN}
                       >
-                        {location.depth}{typeof location.depth === "number" ? " cm" : ""}
-                      </strong>
-                    </div>
-                  ))}
-              </div>
-            </div>
+                        {/* Route lines */}
+                        {routeResult?.routes?.map((route, idx) => {
+                          const isSelected = idx === selectedRouteIndex;
+                          return (
+                            <Source key={`route-${idx}`} id={`route-${idx}`} type="geojson" data={route.geometry}>
+                              <Layer
+                                id={`route-line-${idx}`}
+                                type="line"
+                                layout={{ "line-join": "round", "line-cap": "round" }}
+                                paint={{
+                                  "line-color": isSelected ? "#0066cc" : "#d9d9dd",
+                                  "line-width": isSelected ? 5 : 3,
+                                  "line-opacity": isSelected ? 1 : 0.5
+                                }}
+                              />
+                            </Source>
+                          );
+                        })}
 
-            {/* DRAINAGE NETWORK */}
-
-            <div className="card sidebar-card">
-              <h2>🔵 Drainage Network</h2>
-
-              <div className="network-stats">
-                <div>
-                  <span>Drainage nodes</span>
-                  <strong>24</strong>
-                </div>
-
-                <div>
-                  <span>Pipe segments</span>
-                  <strong>31</strong>
-                </div>
-
-                <div>
-                  <span>Overcapacity nodes</span>
-                  <strong>
-                    {batchPredictions?.predictions
-                      ? batchPredictions.predictions.filter(
-                          (p) => p.water_depth_cm > 25,
-                        ).length
-                      : 3}
-                  </strong>
-                </div>
-              </div>
-
-              <div className="progress">
-                <div
-                  style={{
-                    width: batchPredictions?.predictions
-                      ? `${Math.min(
-                          100,
-                          (batchPredictions.predictions.reduce(
-                            (s, p) => s + p.water_depth_cm,
-                            0,
-                          ) /
-                            batchPredictions.predictions.length) *
-                            3,
-                        )}%`
-                      : "52%",
-                  }}
-                ></div>
-              </div>
-
-              <small className="loading-text">Estimated network loading</small>
-            </div>
-
-            {/* SAFE ROUTE */}
-
-            <div className="card sidebar-card route-card">
-              <h2>🗺️ Safe Route Advisor</h2>
-
-              <p>
-                Dynamic safe transit corridor analysis using street-level depth predictions.
-              </p>
-
-              <button onClick={findSafeRoute}>FIND SAFE ROUTE</button>
-
-              <div className="route-message">{routeMessage}</div>
-            </div>
-          </aside>
-        </section>
-
-
-        {/* ================= TABLE ================= */}
-
-        <section className="card table-card">
-          <div className="table-heading">
-            <div>
-              <h2>Street-Level Prediction</h2>
-
-              <p>
-                Forecast +{leadTime} • Rainfall: {rainfall} mm/hr
-                {batchPredictions ? " • XGBoost Engine" : ""}
-              </p>
-            </div>
-
-            <span className="model-tag">
-              {batchPredictions ? "XGBOOST MODEL" : "ML ENGINE"}
-            </span>
-          </div>
-
-          <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Location</th>
-                  <th>Predicted Depth</th>
-                  <th>Flood Probability</th>
-                  <th>Risk</th>
-                  <th>Drainage Status</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {locations.map((location) => (
-                  <tr key={location.name}>
-                    <td className="location-name">{location.name}</td>
-
-                    <td>
-                      <strong>
-                        {location.depth}
-                        {typeof location.depth === "number" ? " cm" : ""}
-                      </strong>
-                    </td>
-
-                    <td>
-                      {location.probability !== null ? (
-                        <div className="prob-bar-cell">
-                          <div className="prob-bar">
+                        {/* Segment risk markers */}
+                        {routeResult?.routes?.[selectedRouteIndex]?.segments?.map((segment, idx) => (
+                          <Marker key={`seg-${idx}`} longitude={segment.lng} latitude={segment.lat} anchor="center">
                             <div
-                              className="prob-fill"
                               style={{
-                                width: `${location.probability}%`,
-                                background: location.color,
+                                width: '12px', height: '12px', borderRadius: '50%',
+                                backgroundColor: RISK_COLORS[segment.risk_level] || "#94a3b8",
+                                border: `1px solid #fff`, cursor: 'pointer',
+                                boxShadow: '0 0 4px rgba(0,0,0,0.3)'
                               }}
-                            ></div>
-                          </div>
-                          <span>{location.probability}%</span>
+                              onClick={(e) => { e.stopPropagation(); setSelectedSegment(segment); }}
+                            />
+                          </Marker>
+                        ))}
+                        
+                        {/* Origin/Destination markers */}
+                        {routeResult?.routes?.[selectedRouteIndex]?.geometry?.coordinates && (
+                          <>
+                            <Marker
+                              longitude={routeResult.routes[selectedRouteIndex].geometry.coordinates[0][0]}
+                              latitude={routeResult.routes[selectedRouteIndex].geometry.coordinates[0][1]}
+                              anchor="bottom"
+                            >
+                              <div style={{ background: '#22c55e', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>START</div>
+                            </Marker>
+                            <Marker
+                              longitude={routeResult.routes[selectedRouteIndex].geometry.coordinates.at(-1)[0]}
+                              latitude={routeResult.routes[selectedRouteIndex].geometry.coordinates.at(-1)[1]}
+                              anchor="bottom"
+                            >
+                              <div style={{ background: '#d62828', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>END</div>
+                            </Marker>
+                          </>
+                        )}
+
+                        {selectedSegment && (
+                          <MapboxPopup
+                            longitude={selectedSegment.lng} latitude={selectedSegment.lat}
+                            anchor="bottom" onClose={() => setSelectedSegment(null)} closeOnClick={false}
+                          >
+                            <div style={{color: '#17171c', fontSize: '12px', lineHeight: '1.4'}}>
+                              <strong>Flood Risk Segment</strong><br />
+                              Probability: {selectedSegment.flood_probability != null ? `${(selectedSegment.flood_probability * 100).toFixed(0)}%` : "N/A"}<br />
+                              Risk: <strong>{selectedSegment.risk_level}</strong><br />
+                              Elevation: {selectedSegment.elevation != null ? `${selectedSegment.elevation} m` : "—"}<br />
+                              Slope: {selectedSegment.slope != null ? `${selectedSegment.slope}%` : "—"}<br />
+                              Drain dist: {selectedSegment.distance_to_drain_m != null ? `${selectedSegment.distance_to_drain_m} m` : "—"}
+                            </div>
+                          </MapboxPopup>
+                        )}
+
+                        {/* Show drainage on route map too */}
+                        {drainageData && (
+                          <Source id="drainage-route" type="geojson" data={drainageData}>
+                            <Layer id="drainage-route-line" type="line" paint={{
+                              "line-color": "#0ea5e9", "line-width": 1.5, "line-opacity": 0.3
+                            }} />
+                          </Source>
+                        )}
+                      </Map>
+
+                      {!routeResult && (
+                        <div className="map-placeholder-msg">
+                          Enter start and destination to see the route on the map
                         </div>
-                      ) : (
-                        "--"
                       )}
-                    </td>
-
-                    <td>
-                      <span className={`risk ${location.risk.toLowerCase()}`}>
-                        {location.risk}
-                      </span>
-                    </td>
-
-                    <td>
-                      <span
-                        className={
-                          location.status === "Overloaded"
-                            ? "status overloaded"
-                            : "status operating"
-                        }
-                      >
-                        {location.status === "Overloaded"
-                          ? "⚠ Overloaded"
-                          : "✓ Operating"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-
-        {/* ================= MODEL INFO ================= */}
-
-        {modelInfo && (
-          <section className="card model-info-card">
-            <h2>🧠 Model Information</h2>
-
-            <div className="model-metrics">
-              <div className="metric">
-                <span>Depth Model MAE</span>
-                <strong>{modelInfo.depth_model?.mae_cm ?? "--"} cm</strong>
-              </div>
-              <div className="metric">
-                <span>Depth Model R²</span>
-                <strong>{modelInfo.depth_model?.r2 ?? "--"}</strong>
-              </div>
-              <div className="metric">
-                <span>Probability AUC</span>
-                <strong>{modelInfo.probability_model?.auc_roc ?? "--"}</strong>
-              </div>
-              <div className="metric">
-                <span>Features</span>
-                <strong>{modelInfo.n_features ?? 11}</strong>
-              </div>
-            </div>
-
-            {modelInfo.feature_importance && (
-              <div className="importance-chart">
-                <h3>Feature Importance</h3>
-                {Object.entries(modelInfo.feature_importance)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([feature, score]) => (
-                    <div className="importance-row" key={feature}>
-                      <span className="feat-name">{feature}</span>
-                      <div className="feat-bar-bg">
-                        <div
-                          className="feat-bar"
-                          style={{ width: `${score * 100}%` }}
-                        ></div>
-                      </div>
-                      <span className="feat-score">{(score * 100).toFixed(1)}%</span>
                     </div>
-                  ))}
+                  </div>
+                </div>
               </div>
-            )}
-          </section>
-        )}
-      </main>
+            </section>
+          )}
 
+          {/* ── SIMULATION TAB ── */}
+          {activeTab === 'simulation' && (
+            <section className="tab-content">
+              <div className="tab-split-layout">
+                <div className="tab-panel-col">
+                  <SimulationPanel
+                    onSimulate={handleSimulate}
+                    isLoading={isSimulating}
+                    mode={simMode}
+                    onModeChange={(m) => { setSimMode(m); setSimError(null); setSelectedSimLocation(null); setSelectedSimPipe(null); }}
+                    drainageResult={drainageSim}
+                    error={simError}
+                  />
+                </div>
+                <div className="tab-map-col">
+                  <div className="panel tab-map-wrapper">
+                    <div className="map-header-content">
+                      <h4 className="panel-title">
+                        {simMode === "drainage" ? "Drainage Network Simulation" : "Simulation Map"}
+                      </h4>
+                      <p className="panel-desc">
+                        {simMode === "drainage"
+                          ? (drainageSim
+                              ? `Pipe load for ${drainageSim.scenario.rainfall_mm_hr} mm/hr over ${drainageSim.scenario.duration_min} min. Click a pipe for details`
+                              : "Pick a storm and run the simulation to see pipe alerts")
+                          : (simLocations.length > 0
+                              ? "Simulated flood risk based on custom rainfall parameters"
+                              : "Showing live risk. Run a simulation to see predicted flood impact")}
+                      </p>
+                    </div>
+                    {currentLocation && (
+                      <div className="tab-map-container">
+                        <Map
+                          key="simulation-map"
+                          interactiveLayerIds={simMode === "drainage" && drainageSim ? ["drainsim-line"] : []}
+                          onClick={simMode === "drainage" ? handleSimMapClick : undefined}
+                          initialViewState={{
+                            longitude: currentLocation.lng,
+                            latitude: currentLocation.lat,
+                            zoom: 14
+                          }}
+                          style={{ width: "100%", height: "100%", borderRadius: "12px" }}
+                          mapStyle="mapbox://styles/mapbox/streets-v12"
+                          mapboxAccessToken={MAPBOX_TOKEN}
+                        >
+                          {/* Current location pin */}
+                          <Marker longitude={currentLocation.lng} latitude={currentLocation.lat} anchor="center">
+                            <div style={{
+                              width: '18px', height: '18px',
+                              borderRadius: '50%', background: '#0066cc',
+                              border: '3px solid #fff', boxShadow: '0 0 12px rgba(0,102,204,0.5)'
+                            }} />
+                          </Marker>
 
-      {/* ================= FOOTER ================= */}
+                          {/* Simulation radius */}
+                          {radiusCircle && (
+                            <Source id="radius-sim" type="geojson" data={radiusCircle}>
+                              <Layer id="radius-sim-fill" type="fill" paint={{ "fill-color": "#0066cc", "fill-opacity": 0.06 }} />
+                              <Layer id="radius-sim-line" type="line" paint={{ "line-color": "#0066cc", "line-width": 2, "line-dasharray": [2, 2], "line-opacity": 0.7 }} />
+                            </Source>
+                          )}
 
-      <footer>
-        <div>
-          <strong>Urban Flood Nowcasting System</strong>
-          <br />
-          Physics-Informed XGBoost • Drainage + Rainfall + Terrain Intelligence
-        </div>
+                          {/* Drainage simulation: pipes coloured by alert */}
+                          {simMode === "drainage" && drainageSim && (
+                            <Source id="drainsim" type="geojson" data={drainageSim.network}>
+                              <Layer id="drainsim-line" type="line"
+                                layout={{ "line-cap": "round", "line-join": "round", "line-sort-key": ["match", ["get", "alert"], "RED", 4, "ORANGE", 3, "YELLOW", 2, 1] }}
+                                paint={{
+                                  "line-color": ["match", ["get", "alert"],
+                                    "RED", ALERT_COLORS.RED,
+                                    "ORANGE", ALERT_COLORS.ORANGE,
+                                    "YELLOW", ALERT_COLORS.YELLOW,
+                                    "GREEN", ALERT_COLORS.GREEN,
+                                    ALERT_COLORS.UNKNOWN],
+                                  "line-width": ["interpolate", ["linear"], ["zoom"], 12, 2, 16, 5],
+                                  "line-opacity": ["case", ["get", "in_area"], 0.95, 0.45],
+                                }} />
+                            </Source>
+                          )}
 
-        <span>SIH26085 • 0–3 Hour Real-Time Forecast Window</span>
-      </footer>
+                          {selectedSimPipe && (
+                            <MapboxPopup
+                              longitude={selectedSimPipe.lng} latitude={selectedSimPipe.lat}
+                              anchor="bottom" onClose={() => setSelectedSimPipe(null)} closeOnClick={false}
+                            >
+                              <div style={{ color: '#17171c', fontSize: '13px', lineHeight: 1.5 }}>
+                                <strong style={{ color: ALERT_COLORS[selectedSimPipe.alert] }}>{selectedSimPipe.alert} ALERT</strong><br />
+                                {drainageSim?.alert_meaning?.[selectedSimPipe.alert]}<br />
+                                Pipe: {selectedSimPipe.segment_id}{selectedSimPipe.pipe_diameter_mm ? ` (${selectedSimPipe.pipe_diameter_mm} mm)` : ""}<br />
+                                {selectedSimPipe.load_pct != null && (<>Load: {selectedSimPipe.load_pct}% of capacity<br /></>)}
+                                Inflow: {selectedSimPipe.inflow_m3s} m³/s
+                                {selectedSimPipe.capacity_m3s ? ` / capacity ${selectedSimPipe.capacity_m3s} m³/s` : ""}<br />
+                                {selectedSimPipe.overflow_m3 > 0 && (<>Overflow: {selectedSimPipe.overflow_m3} m³<br /></>)}
+                                Ward: {selectedSimPipe.ward}
+                              </div>
+                            </MapboxPopup>
+                          )}
+
+                          {/* Simulation risk markers */}
+                          {simMode === "flood" && (simLocations.length > 0 ? simLocations : dynamicLocations).map((location) => (
+                            <Marker key={location.name} longitude={location.lng} latitude={location.lat} anchor="center">
+                              <div
+                                style={{
+                                  width: '14px', height: '14px', borderRadius: '50%',
+                                  backgroundColor: location.color, opacity: 0.8,
+                                  border: `2px solid #fff`, cursor: 'pointer'
+                                }}
+                                onClick={(e) => { e.stopPropagation(); setSelectedSimLocation(location); }}
+                              />
+                            </Marker>
+                          ))}
+
+                          {selectedSimLocation && (
+                            <MapboxPopup
+                              longitude={selectedSimLocation.lng} latitude={selectedSimLocation.lat}
+                              anchor="bottom" onClose={() => setSelectedSimLocation(null)} closeOnClick={false}
+                            >
+                              <div style={{color: '#17171c', fontSize: '13px'}}>
+                                <strong>{selectedSimLocation.name}</strong><br />
+                                Risk: <strong style={{color: selectedSimLocation.color}}>{selectedSimLocation.risk}</strong><br />
+                                Probability: {selectedSimLocation.probability}%
+                                {selectedSimLocation.drainLoad != null && (
+                                  <><br />Nearest drain load: <strong style={{ color: ALERT_COLORS[selectedSimLocation.drainAlert] }}>
+                                    {selectedSimLocation.drainLoad}%</strong></>
+                                )}
+                              </div>
+                            </MapboxPopup>
+                          )}
+
+                          {/* Drainage Layer (plain, flood mode only) */}
+                          {simMode === "flood" && drainageData && (
+                            <Source id="drainage-sim" type="geojson" data={drainageData}>
+                              <Layer id="drainage-sim-line" type="line" paint={{
+                                "line-color": "#0ea5e9", "line-width": 2, "line-opacity": 0.5
+                              }} />
+                            </Source>
+                          )}
+                        </Map>
+                        {simMode === "drainage" ? (
+                          <div className="risk-legend" style={{ background: "var(--canvas)", padding: "16px", borderRadius: "12px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", border: "1px solid var(--hairline)" }}>
+                            <h4 style={{ margin: "0 0 12px", fontSize: "14px", color: "var(--slate)" }}>DRAIN ALERT</h4>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", fontSize: "13px" }}>
+                              {[["GREEN", "< 75%"], ["YELLOW", "75–100%"], ["ORANGE", "100–150%"], ["RED", "> 150%"]].map(([lvl, range]) => (
+                                <div key={lvl} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                  <span style={{ display: "block", width: "18px", height: "4px", borderRadius: "2px", background: ALERT_COLORS[lvl] }} />
+                                  <span>{lvl.charAt(0) + lvl.slice(1).toLowerCase()} ({range} load)</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <RiskLegend />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ── DRAINAGE TAB ── */}
+          {activeTab === 'drainage' && (
+            <section className="tab-content">
+              <div className="tab-split-layout">
+                <div className="tab-panel-col">
+                  <div className="panel drainage-info-panel">
+                    <h3 className="panel-title" style={{ color: "var(--primary)", marginBottom: "16px" }}>Drainage Network</h3>
+                    <p className="panel-desc">KMC's mapped drainage and canal network around your current location. Drainage proximity is a key input for the flood prediction model.</p>
+                    
+                    <div className="drainage-stats">
+                      <div className="drainage-stat-card">
+                        <span className="drainage-stat-label">Total Drains</span>
+                        <span className="drainage-stat-value">
+                          {drainageData?.features?.length || "—"}
+                        </span>
+                      </div>
+                      <div className="drainage-stat-card">
+                        <span className="drainage-stat-label">Network Type</span>
+                        <span className="drainage-stat-value">KMC Canal</span>
+                      </div>
+                      <div className="drainage-stat-card">
+                        <span className="drainage-stat-label">Data Status</span>
+                        <span className="drainage-stat-value" style={{ color: drainageData ? "#22c55e" : "#d62828" }}>
+                          {drainageData ? "Loaded" : "Unavailable"}
+                        </span>
+                      </div>
+                      <div className="drainage-stat-card">
+                        <span className="drainage-stat-label">Manholes</span>
+                        <span className="drainage-stat-value">
+                          {manholeData?.features?.length || "—"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {nearbyManholes.length > 0 && (
+                      <div style={{ marginTop: "20px" }}>
+                        <strong style={{ color: "var(--ink)", fontSize: "14px" }}>Nearest manholes</strong>
+                        <ul style={{ listStyle: "none", margin: "8px 0 0 0", padding: 0 }}>
+                          {nearbyManholes.map((mh) => (
+                            <li key={mh.manhole_id}>
+                              <button
+                                type="button"
+                                onClick={() => locateManhole(mh)}
+                                aria-label={`Show ${mh.manhole_id} on map`}
+                                style={{
+                                  width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
+                                  gap: "8px", padding: "8px 10px", marginBottom: "6px", cursor: "pointer",
+                                  background: selectedManhole?.manhole_id === mh.manhole_id ? "var(--canvas-parchment)" : "transparent",
+                                  border: "1px solid var(--hairline)", borderRadius: "8px", fontSize: "13px", color: "var(--ink)",
+                                  textAlign: "left",
+                                }}
+                              >
+                                <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                  <span style={{ width: 10, height: 10, borderRadius: "50%", background: MANHOLE_COLORS[mh.kind] }} />
+                                  {mh.manhole_id} · {mh.kind}
+                                </span>
+                                <span style={{ color: "var(--ink-muted-48)" }}>{Math.round(mh.distance)} m</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                        <p style={{ fontSize: "12px", color: "var(--ink-muted-48)", margin: "6px 0 0 0" }}>
+                          Manhole positions are inferred from pipe junctions and ends in the KMC sewer maps, not surveyed.
+                        </p>
+                      </div>
+                    )}
+
+                    <div style={{ marginTop: "20px", padding: "16px", background: "var(--canvas-parchment)", borderRadius: "12px", fontSize: "13px", color: "var(--ink-muted-48)" }}>
+                      <strong style={{ color: "var(--ink)" }}>How drainage affects flood risk:</strong>
+                      <ul style={{ margin: "8px 0 0 0", paddingLeft: "16px", lineHeight: "1.8" }}>
+                        <li>Points closer to drains have better water removal capacity</li>
+                        <li>Pipe diameter and drain capacity factor into risk calculations</li>
+                        <li>Historical waterlogging correlates with poor drainage areas</li>
+                        <li>The model uses distance-to-drain as a key prediction feature</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <div className="tab-map-col">
+                  <div className="panel tab-map-wrapper">
+                    <div className="map-header-content">
+                      <h4 className="panel-title">Drainage Network Map</h4>
+                      <p className="panel-desc">KMC drainage pipes and manholes. Click a manhole to see its location</p>
+                    </div>
+                    {currentLocation && (
+                      <div className="tab-map-container">
+                        <Map
+                          key="drainage-map"
+                          ref={drainageMapRef}
+                          interactiveLayerIds={manholeData ? ["manhole-points"] : []}
+                          onClick={handleDrainageMapClick}
+                          cursor="auto"
+                          initialViewState={{
+                            longitude: currentLocation.lng,
+                            latitude: currentLocation.lat,
+                            zoom: 14
+                          }}
+                          style={{ width: "100%", height: "100%", borderRadius: "12px" }}
+                          mapStyle="mapbox://styles/mapbox/light-v11"
+                          mapboxAccessToken={MAPBOX_TOKEN}
+                        >
+                          {/* Current location pin */}
+                          <Marker longitude={currentLocation.lng} latitude={currentLocation.lat} anchor="center">
+                            <div style={{
+                              width: '18px', height: '18px',
+                              borderRadius: '50%', background: '#0066cc',
+                              border: '3px solid #fff', boxShadow: '0 0 12px rgba(0,102,204,0.5)'
+                            }} />
+                          </Marker>
+
+                          {/* Drainage Layer — prominent */}
+                          {drainageData && (
+                            <Source id="drainage-main" type="geojson" data={drainageData}>
+                              <Layer id="drainage-main-line" type="line" paint={{
+                                "line-color": "#0ea5e9",
+                                "line-width": 3,
+                                "line-opacity": 0.8
+                              }} />
+                            </Source>
+                          )}
+
+                          {/* Manholes (inferred network nodes) */}
+                          {manholeData && (
+                            <Source id="manholes" type="geojson" data={manholeData}>
+                              <Layer id="manhole-points" type="circle" minzoom={13} paint={{
+                                "circle-color": ["match", ["get", "kind"],
+                                  "junction", MANHOLE_COLORS.junction,
+                                  "joint", MANHOLE_COLORS.joint,
+                                  MANHOLE_COLORS.terminal],
+                                "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 2, 16, 5, 19, 9],
+                                "circle-stroke-color": "#ffffff",
+                                "circle-stroke-width": 1,
+                              }} />
+                            </Source>
+                          )}
+
+                          {/* Selected manhole: highlighted pin + location popup */}
+                          {selectedManhole && (
+                            <>
+                              <Marker longitude={selectedManhole.lng} latitude={selectedManhole.lat} anchor="center">
+                                <div style={{
+                                  width: 22, height: 22, borderRadius: "50%",
+                                  border: `3px solid ${MANHOLE_COLORS[selectedManhole.kind] || "#7c3aed"}`,
+                                  background: "rgba(124,58,237,0.15)", animation: "pulse-ring 2s ease-out infinite",
+                                }} />
+                              </Marker>
+                              <MapboxPopup
+                                longitude={selectedManhole.lng} latitude={selectedManhole.lat}
+                                anchor="bottom" offset={14} closeOnClick={false}
+                                onClose={() => setSelectedManhole(null)}
+                              >
+                                <div style={{ color: "#17171c", fontSize: "13px", lineHeight: 1.5 }}>
+                                  <strong>{selectedManhole.manhole_id}</strong> ({selectedManhole.kind})<br />
+                                  Location: {selectedManhole.lat.toFixed(6)}, {selectedManhole.lng.toFixed(6)}<br />
+                                  Connected pipes: {selectedManhole.connected_pipes}<br />
+                                  {selectedManhole.max_diameter_mm != null && (<>Max pipe: {selectedManhole.max_diameter_mm} mm<br /></>)}
+                                  {selectedManhole.ward != null && (<>Ward: {selectedManhole.ward}<br /></>)}
+                                  {selectedManhole.distance != null && (<>Distance from you: {Math.round(selectedManhole.distance)} m<br /></>)}
+                                  <a
+                                    href={`https://www.google.com/maps/dir/?api=1&destination=${selectedManhole.lat},${selectedManhole.lng}`}
+                                    target="_blank" rel="noopener noreferrer"
+                                  >
+                                    Directions
+                                  </a>
+                                  <div style={{ fontSize: "11px", color: "#6b7280", marginTop: 4 }}>Inferred position</div>
+                                </div>
+                              </MapboxPopup>
+                            </>
+                          )}
+                        </Map>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ── CONNECTIVITY TAB (no map) ── */}
+          {activeTab === 'connectivity' && (
+            <section className="tab-content">
+              <div className="connectivity-layout">
+                <div className="panel connectivity-panel">
+                  <DataStatus />
+                </div>
+              </div>
+            </section>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

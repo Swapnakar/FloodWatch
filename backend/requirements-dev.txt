@@ -1,0 +1,6 @@
+-r requirements.txt
+pytest==8.4.2
+
+# KMC map extraction tooling (scripts/extract_kmc_geopdf.py); not needed at runtime
+pypdf==6.19.0
+pillow==11.3.0

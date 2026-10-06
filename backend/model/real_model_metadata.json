@@ -1,0 +1,116 @@
+{
+  "model_version": "real_v1",
+  "prediction_type": "flood_probability",
+  "training_data_type": "real",
+  "last_trained_at": "2026-09-29T20:47:40+00:00",
+  "training_data_source": "KMC 2017 Major Water Logging Pockets + DEM + KMC drainage",
+  "prediction_meaning": "static flood susceptibility (probability a location is a waterlogging-prone spot), NOT a same-day forecast",
+  "label": "historical_waterlogging",
+  "label_source": "KMC 'Action Plan to Mitigate Flood, Cyclone & Water Logging 2017', Section C",
+  "features_used": [
+    "elevation_m",
+    "slope_percent",
+    "distance_to_drain_m",
+    "pipe_diameter_mm",
+    "drain_capacity_estimated_m3s",
+    "distance_to_waterbody_m"
+  ],
+  "n_features": 6,
+  "training_rows": 2024,
+  "unique_locations": 2024,
+  "unique_positives": 126,
+  "unique_negatives": 1898,
+  "class_balance": "126 positive / 1898 negative (pos rate 6.2%)",
+  "spatial_cv_folds": 5,
+  "spatial_cv_cell_m": 500,
+  "cv_metrics": {
+    "accuracy": {
+      "mean": 0.7026,
+      "std": 0.0269,
+      "per_fold": [
+        0.6864,
+        0.6667,
+        0.716,
+        0.7457,
+        0.698
+      ]
+    },
+    "precision": {
+      "mean": 0.0677,
+      "std": 0.0205,
+      "per_fold": [
+        0.0536,
+        0.0709,
+        0.1038,
+        0.0667,
+        0.0435
+      ]
+    },
+    "recall": {
+      "mean": 0.2915,
+      "std": 0.0538,
+      "per_fold": [
+        0.2222,
+        0.3462,
+        0.3548,
+        0.24,
+        0.2941
+      ]
+    },
+    "f1": {
+      "mean": 0.1089,
+      "std": 0.0296,
+      "per_fold": [
+        0.0863,
+        0.1176,
+        0.1606,
+        0.1043,
+        0.0758
+      ]
+    },
+    "roc_auc": {
+      "mean": 0.589,
+      "std": 0.0281,
+      "per_fold": [
+        0.5541,
+        0.5754,
+        0.6044,
+        0.5761,
+        0.6351
+      ]
+    }
+  },
+  "feature_importance": {
+    "elevation_m": 0.2996,
+    "slope_percent": 0.1967,
+    "distance_to_drain_m": 0.1885,
+    "pipe_diameter_mm": 0.1459,
+    "drain_capacity_estimated_m3s": 0.0,
+    "distance_to_waterbody_m": 0.1693
+  },
+  "refit_confusion_matrix": {
+    "tn": 1304,
+    "fp": 594,
+    "fn": 1,
+    "tp": 125
+  },
+  "xgb_params": {
+    "n_estimators": 200,
+    "max_depth": 4,
+    "learning_rate": 0.05,
+    "scale_pos_weight": 15.063492063492063,
+    "eval_metric": "logloss",
+    "use_label_encoder": false,
+    "n_jobs": 1,
+    "random_state": 42,
+    "tree_method": "hist"
+  },
+  "model_file": "real_flood_probability_model.json",
+  "caveats": [
+    "Only 126 distinct positive locations. Metrics are cross-validated but unstable; treat this model as a prototype, not a production-quality classifier.",
+    "Drainage features are sparse (~8% non-null). XGBoost handles the missing values; the model leans on terrain (elevation, slope) and distance to water.",
+    "Label is 'listed major pocket', not a dated flood event. A positive means 'KMC listed this spot in 2017'; a negative means 'not listed in the covered area'.",
+    "This is a static flood-SUSCEPTIBILITY model. It does not use rainfall (the label is rainfall-independent). Same-day rainfall is applied at inference as a severity multiplier.",
+    "One row per location (rainfall-scenario expansion collapsed) so CV counts each place once."
+  ]
+}

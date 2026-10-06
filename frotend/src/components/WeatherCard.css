@@ -1,0 +1,161 @@
+/* ═══════════════════════════════════════════════════
+   WeatherCard — Cohere Design System
+   ═══════════════════════════════════════════════════ */
+
+.wc {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+
+/* ── Header ── */
+
+.wc__header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wc__location {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.wc__location svg {
+  color: var(--deep-green);
+}
+
+.wc__source {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+
+/* ── Main Content ── */
+
+.wc__main {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.wc__temp-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wc__emoji {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.wc__temp {
+  font-size: 32px;
+  font-weight: 600;
+  font-family: var(--font-display);
+  letter-spacing: -1.2px;
+  color: var(--primary);
+  line-height: 1;
+}
+
+.wc__details {
+  display: flex;
+  gap: 24px;
+}
+
+.wc__detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.wc__detail-val {
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font-display);
+  color: var(--primary);
+}
+
+.wc__detail-lbl {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.28px;
+}
+
+
+/* ── Timestamp ── */
+
+.wc__timestamp {
+  display: none;
+}
+
+
+/* ── Loading ── */
+
+.wc--loading {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+  min-height: 140px;
+}
+
+.wc__shimmer {
+  height: 16px;
+  background: linear-gradient(90deg, var(--border-light) 0%, var(--soft-stone) 50%, var(--border-light) 100%);
+  background-size: 200% 100%;
+  border-radius: var(--radius-xs);
+  animation: wc-shimmer 1.5s ease-in-out infinite;
+  width: 100%;
+}
+
+.wc__shimmer.short { width: 60%; }
+
+@keyframes wc-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+
+/* ── Error ── */
+
+.wc--error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 140px;
+  gap: 8px;
+}
+
+.wc__error-icon {
+  font-size: 24px;
+  opacity: 0.5;
+}
+
+.wc--error h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--primary);
+  font-family: var(--font-display);
+}
+
+.wc--error p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}

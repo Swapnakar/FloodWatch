@@ -5,3 +5,26 @@ __pycache__/
 .venv/
 venv/
 .DS_Store
+.pytest_cache/
+
+# Large / source data drops (keep the directory placeholders)
+backend/data/dem/*.tif
+backend/data/raw/*
+!backend/data/raw/.gitkeep
+
+# Regenerable extraction artefacts (renders, QA overlays, OSM response cache)
+backend/data/processed/kmc_extracted/cad/render/
+backend/data/processed/kmc_extracted/cad/qa/
+backend/data/processed/kmc_extracted/osm_cache/
+
+# Geocoded outputs: Mapbox permanent-geocoding results may not be redistributed,
+# and this repo is public. Deploy them via a Render Secret File or a private repo.
+backend/data/historical/waterlogging_points.csv
+backend/data/historical/geocode_cache.json
+backend/data/historical/geocode_review.csv
+
+# Training dataset: derived from the geocoded (Mapbox permanent) waterlogging
+# coordinates, so it carries the same no-redistribution constraint.
+backend/data/processed/training_data.csv
+# IMD token + last weather reading (contains a live access token)
+backend/.cache/
