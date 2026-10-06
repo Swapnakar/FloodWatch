@@ -1,0 +1,22 @@
+[
+  {
+    "sheet": "036_Sealdah Station.pdf",
+    "status": "WAITING_FOR_GCPS",
+    "expected_file": "/Users/rijurana/FloodWatch/backend/data/processed/kmc_extracted/cad/gcp/ward036.points"
+  },
+  {
+    "sheet": "104_kalikapur.pdf",
+    "status": "WAITING_FOR_GCPS",
+    "expected_file": "/Users/rijurana/FloodWatch/backend/data/processed/kmc_extracted/cad/gcp/ward104.points"
+  },
+  {
+    "sheet": "061_Park Street.pdf",
+    "status": "WAITING_FOR_GCPS",
+    "expected_file": "/Users/rijurana/FloodWatch/backend/data/processed/kmc_extracted/cad/gcp/ward061.points"
+  },
+  {
+    "sheet": "067_kasba1.pdf",
+    "status": "WAITING_FOR_GCPS",
+    "expected_file": "/Users/rijurana/FloodWatch/backend/data/processed/kmc_extracted/cad/gcp/ward067.points"
+  }
+]

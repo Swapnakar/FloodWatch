@@ -1,0 +1,306 @@
+[
+  {
+    "sheet": "036_Sealdah Station.pdf",
+    "ward": 36,
+    "page_rotate": 270,
+    "warnings": [],
+    "coverage_note": "full sewer layer(s) extracted",
+    "labels": {
+      "assembled": 61,
+      "by_diameter": {
+        "300": 29,
+        "225": 16,
+        "450": 5,
+        "600": 4,
+        "400": 3,
+        "375": 2,
+        "250": 1,
+        "150": 1
+      }
+    },
+    "chaining": {
+      "generic": {
+        "layers": [
+          "225",
+          "300"
+        ],
+        "dashes": 958,
+        "max_gap_pt": 3.95,
+        "chains": 55,
+        "single_dash_chains": 1
+      },
+      "diameter_layer": {
+        "layers": [
+          "300 DIA",
+          "400 DIA",
+          "450 DIA"
+        ],
+        "dashes": 74,
+        "max_gap_pt": 6.0,
+        "chains": 7,
+        "single_dash_chains": 0
+      },
+      "drain": {
+        "layers": [
+          "Z DRAIN"
+        ],
+        "dashes": 538,
+        "max_gap_pt": 3.94,
+        "chains": 19,
+        "single_dash_chains": 1
+      }
+    },
+    "label_assignment": {
+      "labels_matched": 55,
+      "labels_ambiguous": 3,
+      "labels_unmatched": 3
+    },
+    "result": {
+      "segments": 89,
+      "total_length_pt": 13614,
+      "length_with_diameter": 0.536,
+      "by_source_layer": {
+        "225": 61,
+        "300": 1,
+        "300 DIA": 3,
+        "450 DIA": 3,
+        "400 DIA": 1,
+        "Z DRAIN": 20
+      },
+      "layer_name_vs_label": {
+        "agree": 1
+      }
+    },
+    "priors": {
+      "printed_area_acres": 237.61,
+      "boundary_area_pt2": 1453787.0,
+      "m_per_pt_from_area": 0.8132814466270482,
+      "rotation_deg_from_north_arrow": 90
+    },
+    "page_size_pt": [
+      2384.0,
+      3370.0
+    ],
+    "render": {
+      "png": "data/processed/kmc_extracted/cad/render/ward036.png",
+      "px_per_pt": 1.7804154302670623,
+      "size": [
+        6000,
+        4244
+      ],
+      "mapping_check": {
+        "points": 3847,
+        "hit_rate": 0.999
+      }
+    }
+  },
+  {
+    "sheet": "104_kalikapur.pdf",
+    "ward": 104,
+    "page_rotate": 270,
+    "warnings": [],
+    "coverage_note": "full sewer layer(s) extracted",
+    "labels": {
+      "assembled": 339,
+      "by_diameter": {
+        "300": 165,
+        "225": 88,
+        "450": 45,
+        "600": 11,
+        "700": 8,
+        "500": 6,
+        "1000": 6,
+        "1200": 3,
+        "800": 3,
+        "400": 2,
+        "375": 2
+      }
+    },
+    "chaining": {
+      "generic": {
+        "layers": [
+          "225"
+        ],
+        "dashes": 3613,
+        "max_gap_pt": 2.8,
+        "chains": 259,
+        "single_dash_chains": 4
+      }
+    },
+    "label_assignment": {
+      "labels_matched": 336,
+      "labels_ambiguous": 2,
+      "labels_unmatched": 1
+    },
+    "result": {
+      "segments": 303,
+      "total_length_pt": 24398,
+      "length_with_diameter": 0.942,
+      "by_source_layer": {
+        "225": 303
+      },
+      "layer_name_vs_label": {}
+    },
+    "priors": {
+      "printed_area_acres": 305.19,
+      "boundary_area_pt2": 1597874.0,
+      "m_per_pt_from_area": 0.8791698432221393,
+      "rotation_deg_from_north_arrow": 90
+    },
+    "page_size_pt": [
+      2384.0,
+      3370.0
+    ],
+    "render": {
+      "png": "data/processed/kmc_extracted/cad/render/ward104.png",
+      "px_per_pt": 1.7804154302670623,
+      "size": [
+        6000,
+        4244
+      ],
+      "mapping_check": {
+        "points": 2954,
+        "hit_rate": 0.998
+      }
+    }
+  },
+  {
+    "sheet": "061_Park Street.pdf",
+    "ward": 61,
+    "page_rotate": 0,
+    "warnings": [],
+    "coverage_note": "full sewer layer(s) extracted",
+    "labels": {
+      "assembled": 64,
+      "by_diameter": {
+        "300": 29,
+        "225": 25,
+        "375": 4,
+        "150": 3,
+        "450": 2,
+        "null": 1
+      }
+    },
+    "chaining": {
+      "diameter_layer": {
+        "layers": [
+          "150",
+          "225",
+          "300",
+          "375",
+          "450"
+        ],
+        "dashes": 1431,
+        "max_gap_pt": 3.86,
+        "chains": 50,
+        "single_dash_chains": 2
+      },
+      "generic_styled": {
+        "layers": [
+          "ROAD_NETWORK"
+        ],
+        "dashes": 984,
+        "max_gap_pt": 6.0,
+        "chains": 62,
+        "single_dash_chains": 1
+      }
+    },
+    "label_assignment": {
+      "labels_unparsed_or_inch": 1,
+      "labels_matched": 63
+    },
+    "result": {
+      "segments": 112,
+      "total_length_pt": 15637,
+      "length_with_diameter": 0.559,
+      "by_source_layer": {
+        "375": 9,
+        "300": 21,
+        "225": 16,
+        "450": 2,
+        "150": 3,
+        "ROAD_NETWORK": 61
+      },
+      "layer_name_vs_label": {
+        "agree": 42,
+        "disagree": 1
+      }
+    },
+    "priors": {
+      "printed_area_acres": 165.37,
+      "boundary_area_pt2": 1785484.0,
+      "m_per_pt_from_area": 0.6122224909300865,
+      "rotation_deg_from_north_arrow": 0
+    },
+    "page_size_pt": [
+      2384.0,
+      3370.0
+    ],
+    "render": {
+      "png": "data/processed/kmc_extracted/cad/render/ward061.png",
+      "px_per_pt": 1.7802013422818792,
+      "size": [
+        4244,
+        6000
+      ],
+      "mapping_check": {
+        "points": 3901,
+        "hit_rate": 1.0
+      }
+    }
+  },
+  {
+    "sheet": "067_kasba1.pdf",
+    "ward": 67,
+    "page_rotate": 270,
+    "warnings": [],
+    "coverage_note": "trunk sewers only; branch sewer network not extracted",
+    "labels": {
+      "assembled": 0,
+      "by_diameter": {}
+    },
+    "chaining": {
+      "generic_styled": {
+        "layers": [
+          "ROAD_NETWORK"
+        ],
+        "dashes": 1686,
+        "max_gap_pt": 2.12,
+        "chains": 29,
+        "single_dash_chains": 0
+      }
+    },
+    "label_assignment": {},
+    "result": {
+      "segments": 29,
+      "total_length_pt": 7644,
+      "length_with_diameter": 0.0,
+      "by_source_layer": {
+        "ROAD_NETWORK": 29
+      },
+      "layer_name_vs_label": {}
+    },
+    "priors": {
+      "printed_area_acres": 464.386,
+      "boundary_area_pt2": 3186869.0,
+      "m_per_pt_from_area": 0.7679206594275712,
+      "rotation_deg_from_north_arrow": 90
+    },
+    "page_size_pt": [
+      2384.0,
+      3370.0
+    ],
+    "render": {
+      "png": "data/processed/kmc_extracted/cad/render/ward067.png",
+      "px_per_pt": 1.7804154302670623,
+      "size": [
+        6000,
+        4244
+      ],
+      "mapping_check": {
+        "points": 4186,
+        "hit_rate": 0.997
+      }
+    }
+  }
+]

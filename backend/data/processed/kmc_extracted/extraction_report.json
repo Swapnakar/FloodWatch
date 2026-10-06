@@ -1,0 +1,1178 @@
+[
+  {
+    "sheet": "036_Sealdah Station.pdf p1",
+    "errors": [
+      "036_Sealdah Station.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "059_topsia.pdf p1",
+    "errors": [
+      "059_topsia.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "060_topsia2.pdf p1",
+    "errors": [
+      "060_topsia2.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "061_Park Street.pdf p1",
+    "errors": [
+      "061_Park Street.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "064_ballygunge1.pdf p1",
+    "errors": [
+      "064_ballygunge1.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "065_ballygunge2.pdf p1",
+    "errors": [
+      "065_ballygunge2.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "066_science city.pdf p1",
+    "errors": [
+      "066_science city.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "067_kasba1.pdf p1",
+    "errors": [
+      "067_kasba1.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "068_gariahat 1.pdf p1",
+    "errors": [
+      "068_gariahat 1.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "069_gariahat 2.pdf p1",
+    "errors": [
+      "069_gariahat 2.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "090_gariahat3.pdf p1",
+    "errors": [
+      "090_gariahat3.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "091_kasba2.pdf p1",
+    "errors": [
+      "091_kasba2.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "092_jadavpur1.pdf p1",
+    "errors": [
+      "092_jadavpur1.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "093_jadavpur2.pdf p1",
+    "errors": [
+      "093_jadavpur2.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "094_tollygunge1.pdf p1",
+    "errors": [
+      "094_tollygunge1.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "095_tollygunge2.pdf p1",
+    "errors": [
+      "095_tollygunge2.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "096_jadavpur3.pdf p1",
+    "errors": [
+      "096_jadavpur3.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "097_tollygunge3.pdf p1",
+    "errors": [
+      "097_tollygunge3.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "098_naktala1.pdf p1",
+    "errors": [
+      "098_naktala1.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "099_naktala2.pdf p1",
+    "errors": [
+      "099_naktala2.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "100_netaji nagar.pdf p1",
+    "errors": [
+      "100_netaji nagar.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "101_baghajatin.pdf p1",
+    "ward": 101,
+    "errors": [],
+    "warnings": [],
+    "georef": {
+      "viewport": "Layers",
+      "max_corner_residual_m": 0.06,
+      "rotation_deg": 0.009,
+      "m_per_pt": 1.0581,
+      "implied_scale": 2999,
+      "printed_scale": 3000,
+      "insets_excluded": [],
+      "scale_mismatch": 0.0002
+    },
+    "legend": {
+      "(1.0, 0.0, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          150
+        ]
+      },
+      "(0.9608, 0.6353, 0.4784) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          200
+        ]
+      },
+      "(0.0, 0.3608, 0.902) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          225
+        ]
+      },
+      "(0.902, 0.0, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          250
+        ]
+      },
+      "(1.0, 0.6667, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          300
+        ]
+      },
+      "(0.7725, 0.0, 1.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          375
+        ]
+      },
+      "(0.6588, 0.4392, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          400
+        ]
+      },
+      "(0.6667, 1.0, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          450
+        ]
+      },
+      "(0.2667, 0.3098, 0.5373) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          500
+        ]
+      },
+      "(1.0, 0.451, 0.8745) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          600
+        ]
+      },
+      "(0.451, 0.0, 0.298) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          700
+        ]
+      },
+      "(0.9608, 0.4784, 0.4784) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          750
+        ]
+      },
+      "(0.6588, 0.6588, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          800
+        ]
+      },
+      "(0.3608, 0.5373, 0.2667) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          900
+        ]
+      },
+      "(0.451, 0.451, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1000
+        ]
+      },
+      "(0.2667, 0.5373, 0.4392) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1200
+        ]
+      },
+      "(0.0, 0.902, 0.6627) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1500
+        ]
+      },
+      "(0.0, 0.0, 0.0) w=2.4": {
+        "conduit_type": "box_sewer",
+        "diameters": [],
+        "geometry": false
+      },
+      "(0.6588, 0.6588, 0.0) w=1.92": {
+        "conduit_type": "box_sewer",
+        "diameters": [],
+        "geometry": true
+      },
+      "(1.0, 1.0, 1.0) w=1.92": {
+        "conduit_type": "box_sewer",
+        "diameters": [],
+        "geometry": false
+      }
+    },
+    "pipes": {
+      "segments": 551,
+      "skipped_outside_main_frame": 0,
+      "under_inset_frame_kept": 0,
+      "box_sewer_decoration_strokes_skipped": 131,
+      "by_type": {
+        "pipe": 548,
+        "box_sewer": 3
+      },
+      "labels_total": 524,
+      "labels_matched_to_pipe": 521,
+      "pipes_label_checked": 505,
+      "label_agreement": 0.9861,
+      "ambiguous_colour_resolved_by_label": 0,
+      "ambiguous_colour_unresolved": 0,
+      "flow_arrow": {
+        "end": 551
+      },
+      "label_mismatches(legend,label)": {
+        "225,300": 1,
+        "225,400": 1,
+        "450,375": 1,
+        "300,450": 1,
+        "500,225": 1,
+        "225,450": 1,
+        "300,225": 1
+      }
+    },
+    "pumping_stations": 0,
+    "water_bodies": 40
+  },
+  {
+    "sheet": "102_jadavpur4.pdf p1",
+    "ward": 102,
+    "errors": [],
+    "warnings": [],
+    "georef": {
+      "viewport": "Layers",
+      "max_corner_residual_m": 0.06,
+      "rotation_deg": 0.013,
+      "m_per_pt": 1.0585,
+      "implied_scale": 3000,
+      "printed_scale": 3000,
+      "insets_excluded": [],
+      "scale_mismatch": 0.0001
+    },
+    "legend": {
+      "(0.0, 0.3608, 0.902) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          225
+        ]
+      },
+      "(1.0, 0.6667, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          300
+        ]
+      },
+      "(0.6588, 0.4392, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          400
+        ]
+      },
+      "(0.6667, 1.0, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          450
+        ]
+      },
+      "(0.2667, 0.3098, 0.5373) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          500
+        ]
+      },
+      "(1.0, 0.451, 0.8745) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          600
+        ]
+      },
+      "(0.902, 0.902, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          650
+        ]
+      },
+      "(0.451, 0.0, 0.298) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          700
+        ]
+      },
+      "(0.6588, 0.6588, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          800
+        ]
+      },
+      "(0.451, 0.451, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1000
+        ]
+      }
+    },
+    "pipes": {
+      "segments": 260,
+      "skipped_outside_main_frame": 0,
+      "under_inset_frame_kept": 0,
+      "box_sewer_decoration_strokes_skipped": 0,
+      "by_type": {
+        "pipe": 260
+      },
+      "labels_total": 248,
+      "labels_matched_to_pipe": 248,
+      "pipes_label_checked": 238,
+      "label_agreement": 0.9874,
+      "ambiguous_colour_resolved_by_label": 0,
+      "ambiguous_colour_unresolved": 0,
+      "flow_arrow": {
+        "end": 260
+      },
+      "label_mismatches(legend,label)": {
+        "300,400": 2,
+        "225,450": 1
+      }
+    },
+    "pumping_stations": 0,
+    "water_bodies": 34
+  },
+  {
+    "sheet": "103_Sontoshpur.pdf p1",
+    "errors": [
+      "103_Sontoshpur.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "104_kalikapur.pdf p1",
+    "errors": [
+      "104_kalikapur.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "105_garfa 1.pdf p1",
+    "ward": 105,
+    "errors": [],
+    "warnings": [],
+    "georef": {
+      "viewport": "Layers",
+      "max_corner_residual_m": 0.02,
+      "rotation_deg": 0.031,
+      "m_per_pt": 0.6349,
+      "implied_scale": 1800,
+      "printed_scale": 1800,
+      "insets_excluded": [],
+      "scale_mismatch": 0.0001
+    },
+    "legend": {
+      "(0.5373, 0.2667, 0.2667) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          100
+        ]
+      },
+      "(1.0, 0.0, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          150
+        ]
+      },
+      "(0.0, 0.3608, 0.902) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          225
+        ]
+      },
+      "(1.0, 0.6667, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          300
+        ]
+      },
+      "(0.7725, 0.0, 1.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          375
+        ]
+      },
+      "(0.6588, 0.4392, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          400
+        ]
+      },
+      "(0.6667, 1.0, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          450
+        ]
+      },
+      "(0.2667, 0.3098, 0.5373) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          500
+        ]
+      },
+      "(1.0, 0.451, 0.8745) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          600
+        ]
+      },
+      "(0.451, 0.0, 0.298) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          700
+        ]
+      },
+      "(0.9608, 0.4784, 0.4784) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          750
+        ]
+      },
+      "(0.6588, 0.6588, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          800
+        ]
+      }
+    },
+    "pipes": {
+      "segments": 327,
+      "skipped_outside_main_frame": 0,
+      "under_inset_frame_kept": 0,
+      "box_sewer_decoration_strokes_skipped": 0,
+      "by_type": {
+        "pipe": 327
+      },
+      "labels_total": 324,
+      "labels_matched_to_pipe": 324,
+      "pipes_label_checked": 321,
+      "label_agreement": 0.9969,
+      "ambiguous_colour_resolved_by_label": 0,
+      "ambiguous_colour_unresolved": 0,
+      "flow_arrow": {
+        "end": 326,
+        "none": 1
+      },
+      "label_mismatches(legend,label)": {
+        "225,300": 1
+      }
+    },
+    "pumping_stations": 0,
+    "water_bodies": 29
+  },
+  {
+    "sheet": "106_garfa2.pdf p1",
+    "errors": [
+      "106_garfa2.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "106_garfa2.pdf p2",
+    "ward": 106,
+    "errors": [],
+    "warnings": [],
+    "georef": {
+      "viewport": "Layers",
+      "max_corner_residual_m": 2.52,
+      "rotation_deg": -0.021,
+      "m_per_pt": 0.9896,
+      "implied_scale": 2805,
+      "printed_scale": 2800,
+      "insets_excluded": [],
+      "scale_mismatch": 0.0018
+    },
+    "legend": {
+      "(1.0, 0.0, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          150
+        ]
+      },
+      "(0.9608, 0.6353, 0.4784) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          200
+        ]
+      },
+      "(0.0, 0.3608, 0.902) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          225
+        ]
+      },
+      "(1.0, 0.6667, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          300
+        ]
+      },
+      "(0.7725, 0.0, 1.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          375
+        ]
+      },
+      "(0.6588, 0.4392, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          400
+        ]
+      },
+      "(0.6667, 1.0, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          450
+        ]
+      },
+      "(0.2667, 0.3098, 0.5373) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          500
+        ]
+      },
+      "(1.0, 0.451, 0.8745) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          600
+        ]
+      },
+      "(0.451, 0.0, 0.298) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          700
+        ]
+      },
+      "(0.6588, 0.6588, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          800
+        ]
+      },
+      "(0.0, 0.0, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          900
+        ]
+      },
+      "(0.451, 0.451, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1000
+        ]
+      },
+      "(0.2667, 0.5373, 0.4392) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1200
+        ]
+      },
+      "(0.0, 0.0, 0.0) w=2.4": {
+        "conduit_type": "box_sewer",
+        "diameters": [],
+        "geometry": false
+      },
+      "(0.6588, 0.6588, 0.0) w=1.92": {
+        "conduit_type": "box_sewer",
+        "diameters": [],
+        "geometry": true
+      },
+      "(1.0, 1.0, 1.0) w=1.92": {
+        "conduit_type": "box_sewer",
+        "diameters": [],
+        "geometry": false
+      }
+    },
+    "pipes": {
+      "segments": 568,
+      "skipped_outside_main_frame": 0,
+      "under_inset_frame_kept": 0,
+      "box_sewer_decoration_strokes_skipped": 69,
+      "by_type": {
+        "pipe": 567,
+        "box_sewer": 1
+      },
+      "labels_total": 530,
+      "labels_matched_to_pipe": 529,
+      "pipes_label_checked": 524,
+      "label_agreement": 0.9905,
+      "ambiguous_colour_resolved_by_label": 0,
+      "ambiguous_colour_unresolved": 0,
+      "flow_arrow": {
+        "end": 568
+      },
+      "label_mismatches(legend,label)": {
+        "300,400": 3,
+        "600,300": 1,
+        "300,225": 1
+      }
+    },
+    "pumping_stations": 0,
+    "water_bodies": 36
+  },
+  {
+    "sheet": "107_vip bazar.pdf p1",
+    "ward": 107,
+    "errors": [],
+    "warnings": [],
+    "georef": {
+      "viewport": "Layers",
+      "max_corner_residual_m": 0.15,
+      "rotation_deg": -0.004,
+      "m_per_pt": 0.9878,
+      "implied_scale": 2800,
+      "printed_scale": 2800,
+      "insets_excluded": [],
+      "scale_mismatch": 0.0001
+    },
+    "legend": {
+      "(0.0, 0.3608, 0.902) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          225
+        ]
+      },
+      "(1.0, 0.6667, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          300
+        ]
+      },
+      "(0.7725, 0.0, 1.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          375
+        ]
+      },
+      "(0.6588, 0.4392, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          400
+        ]
+      },
+      "(0.6667, 1.0, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          450
+        ]
+      },
+      "(0.2667, 0.3098, 0.5373) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          500
+        ]
+      },
+      "(1.0, 0.451, 0.8745) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          600
+        ]
+      },
+      "(0.451, 0.0, 0.298) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          700,
+          750
+        ]
+      },
+      "(0.6588, 0.6588, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          800
+        ]
+      },
+      "(0.3608, 0.5373, 0.2667) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          900
+        ]
+      },
+      "(0.451, 0.451, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1000
+        ]
+      },
+      "(0.2667, 0.5373, 0.4392) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1200
+        ]
+      },
+      "(0.0, 0.0, 0.0) w=2.4": {
+        "conduit_type": "box_sewer",
+        "diameters": [],
+        "geometry": false
+      },
+      "(0.6588, 0.6588, 0.0) w=1.92": {
+        "conduit_type": "box_sewer",
+        "diameters": [],
+        "geometry": true
+      },
+      "(1.0, 1.0, 1.0) w=1.92": {
+        "conduit_type": "box_sewer",
+        "diameters": [],
+        "geometry": false
+      }
+    },
+    "pipes": {
+      "segments": 608,
+      "skipped_outside_main_frame": 0,
+      "under_inset_frame_kept": 0,
+      "box_sewer_decoration_strokes_skipped": 46,
+      "by_type": {
+        "pipe": 606,
+        "box_sewer": 2
+      },
+      "labels_total": 588,
+      "labels_matched_to_pipe": 586,
+      "pipes_label_checked": 568,
+      "label_agreement": 0.9912,
+      "ambiguous_colour_resolved_by_label": 7,
+      "ambiguous_colour_unresolved": 2,
+      "flow_arrow": {
+        "end": 605,
+        "start": 1,
+        "none": 2
+      },
+      "label_mismatches(legend,label)": {
+        "300,225": 1,
+        "400,900": 1,
+        "300,800": 1,
+        "800,900": 1,
+        "300,400": 1
+      }
+    },
+    "pumping_stations": 0,
+    "water_bodies": 41
+  },
+  {
+    "sheet": "108_ruby.pdf p1",
+    "ward": 108,
+    "errors": [],
+    "warnings": [],
+    "georef": {
+      "viewport": "Layers",
+      "max_corner_residual_m": 0.09,
+      "rotation_deg": 0.094,
+      "m_per_pt": 1.2363,
+      "implied_scale": 3504,
+      "printed_scale": 3500,
+      "insets_excluded": [
+        "New Data Frame"
+      ],
+      "scale_mismatch": 0.0013
+    },
+    "legend": {
+      "(0.0, 0.3608, 0.902) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          225
+        ]
+      },
+      "(1.0, 0.6667, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          300
+        ]
+      },
+      "(0.6588, 0.4392, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          400
+        ]
+      },
+      "(0.6667, 1.0, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          450
+        ]
+      },
+      "(0.2667, 0.3098, 0.5373) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          500
+        ]
+      },
+      "(1.0, 0.451, 0.8745) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          600
+        ]
+      },
+      "(0.451, 0.0, 0.298) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          700
+        ]
+      },
+      "(0.6588, 0.6588, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          800
+        ]
+      },
+      "(0.3608, 0.5373, 0.2667) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          900
+        ]
+      },
+      "(0.451, 0.451, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1000
+        ]
+      },
+      "(0.2667, 0.5373, 0.4392) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1200
+        ]
+      },
+      "(0.6588, 0.2196, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1400
+        ]
+      }
+    },
+    "pipes": {
+      "segments": 171,
+      "skipped_outside_main_frame": 0,
+      "under_inset_frame_kept": 0,
+      "box_sewer_decoration_strokes_skipped": 0,
+      "by_type": {
+        "pipe": 171
+      },
+      "labels_total": 152,
+      "labels_matched_to_pipe": 152,
+      "pipes_label_checked": 149,
+      "label_agreement": 1.0,
+      "ambiguous_colour_resolved_by_label": 0,
+      "ambiguous_colour_unresolved": 0,
+      "flow_arrow": {
+        "end": 171
+      }
+    },
+    "pumping_stations": 1,
+    "water_bodies": 189
+  },
+  {
+    "sheet": "108_ruby.pdf p2",
+    "ward": 108,
+    "errors": [],
+    "warnings": [],
+    "georef": {
+      "viewport": "Layers",
+      "max_corner_residual_m": 2.76,
+      "rotation_deg": -0.025,
+      "m_per_pt": 1.0582,
+      "implied_scale": 3000,
+      "printed_scale": 3000,
+      "insets_excluded": [
+        "New Data Frame"
+      ],
+      "scale_mismatch": 0.0001
+    },
+    "legend": {
+      "(0.0, 0.3608, 0.902) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          225
+        ]
+      },
+      "(1.0, 0.6667, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          300
+        ]
+      },
+      "(0.7725, 0.0, 1.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          375
+        ]
+      },
+      "(0.6588, 0.4392, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          400
+        ]
+      },
+      "(0.6667, 1.0, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          450
+        ]
+      },
+      "(0.2667, 0.3098, 0.5373) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          500
+        ]
+      },
+      "(1.0, 0.451, 0.8745) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          600
+        ]
+      },
+      "(0.451, 0.0, 0.298) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          700
+        ]
+      }
+    },
+    "pipes": {
+      "segments": 179,
+      "skipped_outside_main_frame": 1,
+      "under_inset_frame_kept": 0,
+      "box_sewer_decoration_strokes_skipped": 0,
+      "by_type": {
+        "pipe": 179
+      },
+      "labels_total": 180,
+      "labels_matched_to_pipe": 179,
+      "pipes_label_checked": 179,
+      "label_agreement": 1.0,
+      "ambiguous_colour_resolved_by_label": 0,
+      "ambiguous_colour_unresolved": 0,
+      "flow_arrow": {
+        "end": 179
+      }
+    },
+    "pumping_stations": 0,
+    "water_bodies": 90
+  },
+  {
+    "sheet": "109_Haltu.pdf p1",
+    "ward": 109,
+    "errors": [],
+    "warnings": [],
+    "georef": {
+      "viewport": "Layers",
+      "max_corner_residual_m": 0.26,
+      "rotation_deg": 0.005,
+      "m_per_pt": 1.5875,
+      "implied_scale": 4500,
+      "printed_scale": 4500,
+      "insets_excluded": [],
+      "scale_mismatch": 0.0
+    },
+    "legend": {
+      "(1.0, 0.6667, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          300
+        ]
+      },
+      "(0.6588, 0.4392, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          400
+        ]
+      },
+      "(0.6667, 1.0, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          450
+        ]
+      },
+      "(0.2667, 0.3098, 0.5373) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          500
+        ]
+      },
+      "(1.0, 0.451, 0.8745) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          600
+        ]
+      },
+      "(0.451, 0.0, 0.298) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          700
+        ]
+      },
+      "(0.6588, 0.6588, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          800
+        ]
+      },
+      "(0.3608, 0.5373, 0.2667) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          900
+        ]
+      },
+      "(0.451, 0.451, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1000
+        ]
+      },
+      "(0.2667, 0.5373, 0.4392) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1200
+        ]
+      },
+      "(0.6588, 0.2196, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1400
+        ]
+      },
+      "(0.4, 0.8039, 0.6706) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1600
+        ]
+      },
+      "(1.0, 0.3333, 0.0) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          1800
+        ]
+      },
+      "(0.5373, 0.2667, 0.3961) w=0.96": {
+        "conduit_type": "pipe",
+        "diameters": [
+          2000
+        ]
+      },
+      "(0.0, 0.0, 0.0) w=2.4": {
+        "conduit_type": "box_sewer",
+        "diameters": [],
+        "geometry": false
+      },
+      "(0.6588, 0.6588, 0.0) w=1.92": {
+        "conduit_type": "box_sewer",
+        "diameters": [],
+        "geometry": true
+      },
+      "(1.0, 1.0, 1.0) w=1.92": {
+        "conduit_type": "box_sewer",
+        "diameters": [],
+        "geometry": false
+      }
+    },
+    "pipes": {
+      "segments": 655,
+      "skipped_outside_main_frame": 0,
+      "under_inset_frame_kept": 0,
+      "box_sewer_decoration_strokes_skipped": 106,
+      "by_type": {
+        "pipe": 653,
+        "box_sewer": 2
+      },
+      "labels_total": 578,
+      "labels_matched_to_pipe": 552,
+      "pipes_label_checked": 536,
+      "label_agreement": 0.9869,
+      "ambiguous_colour_resolved_by_label": 0,
+      "ambiguous_colour_unresolved": 0,
+      "flow_arrow": {
+        "end": 647,
+        "start": 3,
+        "none": 5
+      },
+      "label_mismatches(legend,label)": {
+        "300,500": 2,
+        "450,300": 1,
+        "1000,700": 1,
+        "300,400": 1,
+        "300,600": 1,
+        "300,450": 1
+      }
+    },
+    "pumping_stations": 2,
+    "water_bodies": 165
+  },
+  {
+    "sheet": "110_garia.pdf p1",
+    "errors": [
+      "110_garia.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "111_garia.pdf p1",
+    "errors": [
+      "111_garia.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "112_garia1.pdf p1",
+    "errors": [
+      "112_garia1.pdf p1: no GeoPDF viewport"
+    ]
+  },
+  {
+    "sheet": "113_garia2.pdf p1",
+    "errors": [
+      "113_garia2.pdf p1: no GeoPDF viewport"
+    ]
+  }
+]

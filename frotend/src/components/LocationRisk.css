@@ -1,0 +1,377 @@
+/* ═══════════════════════════════════════════════════
+   LocationRisk — Cohere Design System + AI Streaming
+   ═══════════════════════════════════════════════════ */
+
+.locrisk {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+
+/* ── Header ── */
+
+.locrisk__head {
+  margin-bottom: 20px;
+}
+
+.locrisk__title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.locrisk__icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--deep-green);
+  color: var(--on-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.locrisk__head h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  font-family: var(--font-display);
+  letter-spacing: -0.36px;
+  color: var(--primary);
+}
+
+.locrisk__location-name {
+  display: block;
+  font-size: 13px;
+  color: var(--slate);
+  margin-top: 2px;
+  font-weight: 400;
+}
+
+.locrisk__subtitle {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+
+/* ── Controls ── */
+
+.locrisk__controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.locrisk__time-buttons {
+  display: flex;
+  background: var(--soft-stone);
+  border-radius: var(--radius-pill);
+  padding: 4px;
+}
+
+.time-btn {
+  padding: 6px 14px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--slate);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+}
+
+.time-btn:hover {
+  color: var(--primary);
+}
+
+.time-btn.active {
+  background: var(--canvas);
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.locrisk__predict-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  background: var(--primary);
+  color: var(--on-primary);
+  border: none;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+}
+
+.locrisk__predict-btn:hover:not(:disabled) {
+  background: var(--primary-focus);
+  color: var(--on-primary);
+}
+
+.locrisk__predict-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.locrisk__spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: locrisk-spin 0.6s linear infinite;
+}
+
+@keyframes locrisk-spin {
+  to { transform: rotate(360deg); }
+}
+
+
+/* ── Loading States ── */
+
+.locrisk__loading-state {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 0;
+}
+
+.locrisk__pulse-ring {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--deep-green);
+  border-radius: 50%;
+  animation: locrisk-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes locrisk-pulse {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+.locrisk__shimmer-bar {
+  height: 14px;
+  background: linear-gradient(90deg, var(--border-light) 0%, var(--soft-stone) 50%, var(--border-light) 100%);
+  background-size: 200% 100%;
+  border-radius: var(--radius-xs);
+  animation: locrisk-shimmer 1.5s ease-in-out infinite;
+  width: 100%;
+}
+
+.locrisk__shimmer-bar.short { width: 75%; }
+.locrisk__shimmer-bar.shorter { width: 50%; }
+
+@keyframes locrisk-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+
+/* ── Risk Badge ── */
+
+.locrisk__risk-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid;
+  background: var(--canvas);
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+  animation: locrisk-fade-in 0.4s ease;
+}
+
+.locrisk__risk-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: locrisk-glow 2s ease-in-out infinite;
+}
+
+@keyframes locrisk-glow {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; }
+  50% { box-shadow: 0 0 8px 2px currentColor; }
+}
+
+.locrisk__risk-text {
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font-display);
+  letter-spacing: -0.3px;
+}
+
+.locrisk__risk-prob {
+  margin-left: auto;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  color: var(--primary);
+  letter-spacing: -0.4px;
+}
+
+
+/* ═══════════════════════════════════════════════════
+   AI OUTPUT — Google Gemini-style streaming
+   ═══════════════════════════════════════════════════ */
+
+.locrisk__ai-output {
+  background: var(--primary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  animation: locrisk-slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-bottom: 12px;
+}
+
+@keyframes locrisk-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.locrisk__ai-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px 0;
+  color: rgba(255,255,255,0.6);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.28px;
+}
+
+.locrisk__ai-header svg {
+  color: #4ade80;
+}
+
+.locrisk__streaming-badge {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #4ade80;
+  animation: locrisk-badge-pulse 1s ease-in-out infinite;
+}
+
+.locrisk__streaming-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4ade80;
+  animation: locrisk-badge-dot 1s ease-in-out infinite;
+}
+
+@keyframes locrisk-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes locrisk-badge-dot {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.6); }
+}
+
+.locrisk__ai-text {
+  margin: 0;
+  padding: 14px 18px 18px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(255,255,255,0.88);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+
+  /* Custom scrollbar for dark bg */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+
+.locrisk__ai-text::-webkit-scrollbar { width: 4px; }
+.locrisk__ai-text::-webkit-scrollbar-track { background: transparent; }
+.locrisk__ai-text::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+.locrisk__cursor {
+  color: #4ade80;
+  font-weight: 300;
+  animation: locrisk-blink 0.6s step-end infinite;
+}
+
+@keyframes locrisk-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+
+/* ── Denied / Error ── */
+
+.locrisk__denied {
+  padding: 16px 0;
+  color: var(--slate);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.locrisk__denied p {
+  margin: 0 0 12px;
+}
+
+.locrisk__retry-btn {
+  padding: 6px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+}
+
+.locrisk__retry-btn:hover {
+  background: var(--soft-stone);
+  border-color: var(--primary);
+}
+
+.locrisk__error-msg {
+  padding: 14px;
+  background: #fef2f2;
+  color: var(--error);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin: 12px 0;
+}
+
+
+/* ── Coords ── */
+
+.locrisk__coords {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.28px;
+  margin-top: 4px;
+}
+
+
+/* ── Fade in animation ── */
+
+@keyframes locrisk-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
